@@ -14,7 +14,6 @@ exports.getClosestDriver = async (req, res) => {
     const availableDrivers = mockDrivers.filter(driver => driver.is_available);
     const driverLocations = availableDrivers.map(driver => `${driver.current_latitude},${driver.current_longitude}`).join('|');
 
-    // Call Google Maps Distance Matrix API
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     const response = await axios.get(`https://maps.googleapis.com/maps/api/distancematrix/json`, {
       params: {
@@ -28,7 +27,6 @@ exports.getClosestDriver = async (req, res) => {
     let minDistance = Infinity;
     let closestDriver = null;
 
-    // Step 4: Find the closest driver
     distances.forEach((distance, index) => {
       if (distance.status === 'OK' && distance.distance.value < minDistance) {
         minDistance = distance.distance.value;
