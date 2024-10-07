@@ -1,4 +1,6 @@
+
 const axios = require('axios');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // mock the data for now 
 let mockDrivers = [
@@ -44,5 +46,55 @@ exports.getClosestDriver = async (req, res) => {
     });
   } catch (error) {
     res.status(500).send('Error finding the closest driver');
+  }
+};
+
+// New method to handle payment via Stripe
+exports.processPayment = async (req, res) => {
+  const { amount, currency, paymentMethodId } = req.body;
+
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency,
+      payment_method: paymentMethodId,
+      confirm: true,
+    });
+
+    res.status(200).send('Payment successful');
+  } catch (error) {
+    res.status(500).send('Error processing payment');
+  }
+};
+
+//  method to send notification to the driver (e.g., using Firebase or Socket.io)
+exports.sendNotificationToDriver = (req, res) => {
+  const { driverID } = req.body;
+  // Placeholder for notification logic
+  // e.g., using Firebase Cloud Messaging or Socket.io to notify the driver in real-time
+  res.status(200).send('Notification sent to driver');
+};
+
+//  method for accepting rider by driver
+exports.acceptRider = async (req, res) => {
+  const { rideID, driverID } = req.body;
+
+  try {
+    // Find the ride and update its driver and status
+    let ride = mockRides.find(r => r.rideID === rideID);
+    if (!ride) {
+      return res.status(404).send('Ride not found');
+    }
+
+    if (ride.status !== 'pending') {
+      return res.status(400).send('Ride is no longer available');
+    }
+
+    ride.driverID = driverID;
+    ride.status = 'accepted';  // Update status to accepted
+
+    res.status(200).send('Ride accepted successfully');
+  } catch (error) {
+    res.status(500).send('Error accepting the ride');
   }
 };
