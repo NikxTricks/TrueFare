@@ -1,13 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const rideController = require('../controllers/rideController');
+const rideSenderController = require('../controllers/rideSender');
 
-router.get('/closestDriver', rideController.getClosestDriver);
-
-router.post('/payment', rideController.processPayment);  // For processing payment
-
-router.post('/notifyDriver', rideController.sendNotificationToDriver);  // To notify driver of ride
-
-router.post('/acceptRider', rideController.acceptRider);  // endpoint for accepting driver
+router.post('/sendRide', rideSenderController.sendRide);
 
 module.exports = router;
