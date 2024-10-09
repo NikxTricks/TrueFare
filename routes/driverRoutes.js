@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const driverController = require('../controllers/driverController');
+const rideSenderController = require('../controllers/rideSender');
 
-router.put('/updateLocation', driverController.updateLocation);
+router.post('/sendRide', rideSenderController.sendRide);
 
 module.exports = router;

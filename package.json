@@ -1,13 +1,15 @@
 {
   "name": "truefare",
   "version": "1.0.0",
-  "description": "",
+  "description": "A rideshare app backend focused on transparency and fairness.",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["rideshare", "fairness", "transparency", "driver", "rider"],
+  "author": "Your Name",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.7.7",
@@ -15,5 +17,8 @@
     "express": "^4.21.0",
     "mysql2": "^3.11.3",
     "stripe": "^12.15.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
   }
 }
