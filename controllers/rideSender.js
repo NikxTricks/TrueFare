@@ -18,7 +18,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c; // Distance in km
 }
 
-exports.sendRideToNearestDriver = (req, res) => {
+exports.sendRide = (req, res) => {
   const { pickupLat, pickupLng, distance, pickupLocation, dropoffLocation, price } = req.body;
 
   try {

@@ -21,7 +21,7 @@ function isPeakHour() {
   return currentHour >= 7 && currentHour <= 9 || currentHour >= 17 && currentHour <= 19; 
 }
 
-exports.calculateAdvancedPrice = async (req, res) => {
+exports.calculatePrice = async (req, res) => {
   const { pickupLat, pickupLng, dropoffLat, dropoffLng, driverLat, driverLng } = req.query;
 
   try {
