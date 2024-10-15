@@ -1,33 +1,32 @@
-const Customer = require('../models/customer');
+const { Customer } = require('../models');
 
-//Create a customer
 exports.createCustomer = async (req, res) => {
   try {
-    const customer = new Customer(req.body);
-    await customer.save();
-    res.status(201).send(customer);
+    const customer = await Customer.create(req.body); 
+    res.status(201).json(customer);
   } catch (error) {
-    res.status(400).send(error);
+    res.status(400).json({ error: error.message }); 
   }
 };
 
-//Get all customers
+
 exports.getAllCustomers = async (req, res) => {
   try {
-    const customers = await Customer.find();
-    res.send(customers);
+    const customers = await Customer.findAll(); 
+    res.status(200).json(customers);
   } catch (error) {
-    res.status(500).send(error);
+    res.status(500).json({ error: error.message }); 
   }
 };
 
-//Get a customer by ID
 exports.getCustomerById = async (req, res) => {
   try {
-    const customer = await Customer.findById(req.params.id);
-    if (!customer) return res.status(404).send();
-    res.send(customer);
+    const customer = await Customer.findByPk(req.params.id); 
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' }); 
+    }
+    res.status(200).json(customer); 
   } catch (error) {
-    res.status(500).send(error);
+    res.status(500).json({ error: error.message }); 
   }
 };

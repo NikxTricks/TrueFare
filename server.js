@@ -1,17 +1,23 @@
 const express = require('express');
-const dotenv = require('dotenv');
-const rideRoutes = require('./routes/rideRoutes');
-const driverRoutes = require('./routes/driverRoutes');
-
-dotenv.config();
 const app = express();
-const PORT = process.env.PORT || 5000;
+require('dotenv').config(); 
+
+// Import Routes
+const customerRoutes = require('./routes/customers');
+const driverRoutes = require('./routes/drivers');
+const paymentRoutes = require('./routes/payments');
+const tripRoutes = require('./routes/trips');
+const rideRoutes = require('./routes/rideRoutes');
 
 app.use(express.json());
 
-app.use('/api/rides', rideRoutes);
-app.use('/api/driver', driverRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.use('/customers', customerRoutes);
+app.use('/drivers', driverRoutes);
+app.use('/payments', paymentRoutes);
+app.use('/trips', tripRoutes);
+app.use('/rides', rideRoutes);  
+
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

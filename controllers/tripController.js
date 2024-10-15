@@ -1,33 +1,34 @@
-const Trip = require('../models/trip');
+const { Trip } = require('../models');
 
-//Create a trip
+// Create a new trip
 exports.createTrip = async (req, res) => {
   try {
-    const trip = new Trip(req.body);
-    await trip.save();
-    res.status(201).send(trip);
+    const trip = await Trip.create(req.body);
+    res.status(201).json(trip);
   } catch (error) {
-    res.status(400).send(error);
+    res.status(400).json({ error: error.message });
   }
 };
 
-//Get all trips
+// Get all trips
 exports.getAllTrips = async (req, res) => {
   try {
-    const trips = await Trip.find();
-    res.send(trips);
+    const trips = await Trip.findAll();
+    res.status(200).json(trips);
   } catch (error) {
-    res.status(500).send(error);
+    res.status(500).json({ error: error.message });
   }
 };
 
-//Get a trip by ID
+// Get a trip by ID
 exports.getTripById = async (req, res) => {
   try {
-    const trip = await Trip.findById(req.params.id);
-    if (!trip) return res.status(404).send();
-    res.send(trip);
+    const trip = await Trip.findByPk(req.params.id);
+    if (!trip) {
+      return res.status(404).json({ message: 'Trip not found' });
+    }
+    res.status(200).json(trip);
   } catch (error) {
-    res.status(500).send(error);
+    res.status(500).json({ error: error.message });
   }
 };
