@@ -49,7 +49,6 @@ exports.getClosestDriver = async (req, res) => {
   }
 };
 
-// New method to handle payment via Stripe
 exports.processPayment = async (req, res) => {
   const { amount, currency, paymentMethodId } = req.body;
 
@@ -67,7 +66,6 @@ exports.processPayment = async (req, res) => {
   }
 };
 
-//  method to send notification to the driver (e.g., using Firebase or Socket.io)
 exports.sendNotificationToDriver = (req, res) => {
   const { driverID } = req.body;
   // Placeholder for notification logic
