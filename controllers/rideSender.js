@@ -1,3 +1,7 @@
+// delete this file its not used?
+
+const io = require('./server');
+
 let mockDrivers = [
   { driverID: 1, current_latitude: 37.7749, current_longitude: -122.4194, is_available: true },
   { driverID: 2, current_latitude: 37.7849, current_longitude: -122.4094, is_available: true },
@@ -60,6 +64,9 @@ exports.sendRide = (req, res) => {
 
     mockRides.push(ride);
     closestDriver.is_available = false;
+
+    // Send real-time notification to the driver using Socket.io
+    io.to(closestDriver.driverID).emit('rideAssigned', ride);
 
     res.status(200).json({
       message: `Ride assigned to driver ${closestDriver.driverID}`,
