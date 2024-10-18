@@ -6,6 +6,8 @@ const { sequelize, User } = require('./models'); // Sequelize models
 require('dotenv').config(); // Load environment variables
 
 const app = express();
+const http = require('http').createServer(app); // Create HTTP server for Socket.io
+const io = require('./socket').init(http); // Initialize Socket.io using socket.js
 
 app.use(express.json());
 
@@ -21,7 +23,6 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 passport.serializeUser((user, done) => done(null, user.id));
-
 passport.deserializeUser(async (id, done) => {
   try {
     const user = await User.findByPk(id);
@@ -44,7 +45,6 @@ passport.use(
         let user = await User.findOne({ where: { googleId: profile.id } });
 
         if (!user) {
-          // Create a new user if one doesn't exist
           user = await User.create({
             googleId: profile.id,
             name: profile.displayName,
@@ -61,18 +61,11 @@ passport.use(
 );
 
 // Routes for Google OAuth authentication
-app.get(
-  '/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-app.get(
-  '/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: '/' }),
-  (req, res) => {
-    res.redirect('/dashboard'); // Redirect on successful login
-  }
-);
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/' }), (req, res) => {
+  res.redirect('/dashboard'); // Redirect on successful login
+});
 
 app.get('/logout', (req, res) => {
   req.logout(() => {
@@ -80,7 +73,6 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// Example protected route (Dashboard)
 app.get('/dashboard', (req, res) => {
   if (!req.isAuthenticated()) {
     return res.redirect('/');
@@ -100,13 +92,36 @@ app.use('/drivers', driverRoutes);
 app.use('/trips', tripRoutes);
 app.use('/payments', paymentRoutes);
 
-// Start the server and connect to the database
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
-  try {
-    await sequelize.authenticate(); // Verify database connection
-    console.log(`Database connected! Server running on http://localhost:${PORT}`);
-  } catch (error) {
-    console.error('Unable to connect to the database:', error);
-  }
+// Socket.io configuration for WebSocket connections (driver/rider notifications)
+io.on('connection', (socket) => {
+  console.log(`Client connected: ${socket.id}`);
+
+  socket.on('joinDriverRoom', (data) => {
+    console.log(`Driver ${data.driverID} has joined their room`);
+    socket.join(`driver_${data.driverID}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`Client disconnected: ${socket.id}`);
+  });
 });
+
+// Start the server and attempt to connect to the database
+const PORT = process.env.PORT || 3000;
+
+async function startServer() {
+  try {
+    await sequelize.authenticate(); // Attempt to verify the database connection
+    console.log('Database connected!');
+  } catch (error) {
+    console.error('Unable to connect to the database:', error.message);
+    console.log('Continuing without database connection...');
+  }
+
+  // Start the server with HTTP server for WebSocket support
+  http.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+startServer();

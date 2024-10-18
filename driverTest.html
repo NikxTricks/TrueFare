@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver WebSocket Test</title>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script> <!-- Load Socket.io client -->
+</head>
+<body>
+    <h1>WebSocket Driver Test</h1>
+
+    <script>
+        // Connect to the WebSocket server
+        const socket = io('http://localhost:3000');
+
+        // Simulate the driver joining a room (replace driverID with the actual driverID)
+        const driverID = '1';  // Driver with driverID 1
+        socket.emit('joinDriverRoom', { driverID });
+
+        console.log(`Driver ${driverID} connected to WebSocket`);
+
+        // Listen for ride assignments
+        socket.on('rideAssigned', (rideDetails) => {
+            console.log('New ride assigned to driver:', rideDetails);
+            alert(`New ride assigned! Pickup at: ${rideDetails.pickupLocation}, Dropoff at: ${rideDetails.dropoffLocation}`);
+        });
+
+        // Listen for ride acceptance
+        socket.on('rideAccepted', (rideInfo) => {
+            console.log('Ride accepted:', rideInfo);
+            alert(`Ride accepted with ID: ${rideInfo.rideID}`);
+        });
+    </script>
+</body>
+</html>
