@@ -1,4 +1,7 @@
-const { Payment, Trip } = require('../models');
+// controllers/paymentController.js
+
+const paymentService = require('../services/paymentService');
+const tripService = require('../services/tripService');
 const { calculatePriceLogic } = require('./priceCalculator');
 
 // Create a new payment
@@ -27,7 +30,10 @@ exports.createPayment = async (req, res) => {
       parseFloat(driverLat), parseFloat(driverLng)
     );
 
-    const payment = await Payment.create({
+    // Optionally, you might want to update the trip status here
+    await tripService.updateTrip(parseInt(tripID), { status: 'completed' });
+
+    const payment = await paymentService.createPayment({
       tripID,
       method,
       amount: price
@@ -42,21 +48,17 @@ exports.createPayment = async (req, res) => {
 // Get all payments
 exports.getAllPayments = async (req, res) => {
   try {
-    const payments = await Payment.findAll({
-      include: { model: Trip }
-    });
+    const payments = await paymentService.getAllPayments();
     res.status(200).json(payments);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching payments', error: error.message });
   }
 };
 
-// Get a payment by ID
+// Get payment by ID
 exports.getPaymentById = async (req, res) => {
   try {
-    const payment = await Payment.findByPk(req.params.id, {
-      include: { model: Trip }
-    });
+    const payment = await paymentService.getPaymentById(parseInt(req.params.id));
 
     if (!payment) {
       return res.status(404).json({ message: 'Payment not found' });

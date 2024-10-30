@@ -1,10 +1,12 @@
+// server.js
+
 require('dotenv').config(); // Load environment variables at the top
 
 const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
-const { sequelize, User } = require('./models'); // Sequelize instance and models
+const userService = require('./services/userService'); // Import userService
 
 const app = express();
 
@@ -35,7 +37,7 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (id, done) => {
   try {
-    const user = await User.findByPk(id); // Find the user by primary key
+    const user = await userService.getUserById(id);
     done(null, user); // Deserialize the user from the session
   } catch (error) {
     done(error, null);
@@ -53,11 +55,11 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       try {
         // Attempt to find the user in the database
-        let user = await User.findOne({ where: { googleId: profile.id } });
+        let user = await userService.findUserByGoogleId(profile.id);
 
         if (!user) {
           // Create a new user if one doesn't exist
-          user = await User.create({
+          user = await userService.createUser({
             googleId: profile.id,
             name: profile.displayName,
             email: profile.emails[0].value,
@@ -105,34 +107,31 @@ app.get('/dashboard', (req, res) => {
 });
 
 // Import and use your routes
+const userRoutes = require('./routes/userRoutes');
 const riderRoutes = require('./routes/riderRoutes');
 const driverRoutes = require('./routes/driverRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const rideRoutes = require('./routes/rideRoutes'); // Assuming you have ride routes
 
+app.use('/users', userRoutes);
 app.use('/riders', riderRoutes);
 app.use('/drivers', driverRoutes);
 app.use('/trips', tripRoutes);
 app.use('/payments', paymentRoutes);
+app.use('/rides', rideRoutes);
 
 // Start the server and connect to the database
 const PORT = process.env.PORT || 3000;
 
-(async () => {
-  try {
-    // Test the database connection
-    await sequelize.authenticate();
-    console.log('Database connected!');
+const shutdown = async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+};
 
-    // Sync models with the database
-    await sequelize.sync({ alter: true });
-    console.log('Database synchronized');
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
-    // Start the Express server
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error('Unable to connect to the database:', error);
-  }
-})();
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});

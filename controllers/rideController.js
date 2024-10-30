@@ -1,6 +1,9 @@
+// controllers/rideController.js
+
 const axios = require('axios');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);  // Assuming Stripe is used for payments
-const io = require('../server');  // Import Socket.io instance for real-time communication
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const io = require('../server');  // Ensure you have Socket.io set up correctly
+const tripService = require('../services/tripService');
 
 // Mock data for drivers and rides
 let mockDrivers = [
@@ -32,7 +35,7 @@ exports.getClosestDriver = async (req, res) => {
     const availableDrivers = mockDrivers.filter(driver => driver.is_available);
     const driverLocations = availableDrivers.map(driver => `${driver.current_latitude},${driver.current_longitude}`).join('|');
 
-    // Use Google Maps Distance Matrix API to calculate distance to each driver (if real data)
+    // Use Google Maps Distance Matrix API to calculate distance to each driver
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     const response = await axios.get(`https://maps.googleapis.com/maps/api/distancematrix/json`, {
       params: {
@@ -89,7 +92,7 @@ exports.sendNotificationToDriver = (req, res) => {
   const { driverID } = req.body;
   
   // Notify the driver via WebSocket
-  io.to(driverID).emit('rideAssigned', { message: 'New ride assigned to you' });
+  io.to(driverID.toString()).emit('rideAssigned', { message: 'New ride assigned to you' });
 
   res.status(200).send('Notification sent to driver');
 };
@@ -119,7 +122,7 @@ exports.acceptRider = async (req, res) => {
 };
 
 // Assign the closest driver to the ride
-exports.assignClosestDriver = (req, res) => {
+exports.assignClosestDriver = async (req, res) => {
   const { pickupLat, pickupLng, distance, pickupLocation, dropoffLocation, price } = req.body;
 
   try {
@@ -163,7 +166,7 @@ exports.assignClosestDriver = (req, res) => {
     closestDriver.is_available = false;
 
     // Send real-time notification to the driver using Socket.io
-    io.to(closestDriver.driverID).emit('rideAssigned', ride);
+    io.to(closestDriver.driverID.toString()).emit('rideAssigned', ride);
 
     res.status(200).json({
       message: `Ride assigned to driver ${closestDriver.driverID}`,
