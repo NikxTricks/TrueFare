@@ -122,11 +122,14 @@ exports.acceptRider = async (req, res) => {
 
 // Assign the closest driver to the ride
 exports.assignClosestDriver = (req, res) => {
-  const { pickupLat, pickupLng, distance, pickupLocation, dropoffLocation, price } = req.body;
+  const { pickupLat, pickupLng, dropoffLat, dropoffLng, pickupLocation, dropoffLocation, price } = req.body;
 
   try {
     console.log('Received ride assignment request:', req.body);
 
+    // Calculate the distance if not provided in the request
+    const distance = calculateDistance(pickupLat, pickupLng, dropoffLat, dropoffLng);
+    
     const availableDrivers = mockDrivers.filter(d => d.is_available);
     if (availableDrivers.length === 0) {
       console.log('No available drivers');
@@ -160,7 +163,7 @@ exports.assignClosestDriver = (req, res) => {
     const ride = {
       rideID: mockRides.length + 1,
       driverID: closestDriver.driverID,
-      distance,
+      distance: distance.toFixed(2) + ' km',
       pickupLocation,
       dropoffLocation,
       price,
@@ -171,7 +174,15 @@ exports.assignClosestDriver = (req, res) => {
     closestDriver.is_available = false;
 
     // Send real-time notification to the driver using Socket.io
-    io.to(`driver_${closestDriver.driverID}`).emit('rideAssigned', ride);
+    io.to(`driver_${closestDriver.driverID}`).emit('rideAssigned', {
+      message: 'New ride assigned to you',
+      rideDetails: {
+        pickupLocation,
+        dropoffLocation,
+        distance: distance.toFixed(2) + ' km',
+        price,
+      }
+    });
 
     console.log(`Ride assigned to driver ${closestDriver.driverID}`);
     res.status(200).json({
