@@ -1,5 +1,3 @@
-// server.js
-
 require('dotenv').config(); // Load environment variables at the top
 
 const express = require('express');
@@ -7,6 +5,10 @@ const session = require('express-session');
 const passport = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const userService = require('./services/userService'); // Import userService
+
+// Import Prisma
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 const app = express();
 
@@ -37,7 +39,7 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (id, done) => {
   try {
-    const user = await userService.getUserById(id);
+    const user = await userService.getUserById(id); // Modify this if userService uses Prisma
     done(null, user); // Deserialize the user from the session
   } catch (error) {
     done(error, null);
@@ -48,17 +50,15 @@ passport.deserializeUser(async (id, done) => {
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID, // Your Google client ID
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET, // Your Google client secret
-      callbackURL: '/auth/google/callback', // Callback URL after authentication
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: '/auth/google/callback',
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        // Attempt to find the user in the database
-        let user = await userService.findUserByGoogleId(profile.id);
+        let user = await userService.findUserByGoogleId(profile.id); // Modify if userService uses Prisma
 
         if (!user) {
-          // Create a new user if one doesn't exist
           user = await userService.createUser({
             googleId: profile.id,
             name: profile.displayName,
@@ -84,7 +84,7 @@ app.get(
   '/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/' }),
   (req, res) => {
-    res.redirect('/dashboard'); // Redirect to dashboard on successful login
+    res.redirect('/dashboard');
   }
 );
 
@@ -125,7 +125,7 @@ app.use('/rides', rideRoutes);
 const PORT = process.env.PORT || 3000;
 
 const shutdown = async () => {
-  await prisma.$disconnect();
+  await prisma.$disconnect(); // Ensure Prisma disconnects on shutdown
   process.exit(0);
 };
 
