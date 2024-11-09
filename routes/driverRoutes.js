@@ -1,7 +1,9 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client'); // Import Prisma Client
 const prisma = new PrismaClient();
+const driverController = require('../controllers/driverController'); // Import driverController
 const router = express.Router();
+
 
 // Create a new driver
 router.post('/', async (req, res) => {
