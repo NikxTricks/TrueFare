@@ -1,21 +1,19 @@
-
-
 const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
-const { sequelize, User } = require('./models'); // Sequelize models
+const { PrismaClient } = require('@prisma/client'); // Prisma Client for database
 require('dotenv').config(); // Load environment variables
 
 const app = express();
 const http = require('http').createServer(app); // Create HTTP server for Socket.io
 const io = require('./socket').init(http); // Initialize Socket.io using socket.js
+const prisma = new PrismaClient(); // Initialize Prisma client
 
 app.use(express.json());
 
 const cors = require('cors');
 app.use(cors({ origin: 'http://localhost:3001' }));
-
 
 app.use(
   session({
@@ -28,10 +26,10 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-passport.serializeUser((user, done) => done(null, user.id));
+passport.serializeUser((user, done) => done(null, user.userID)); // Use userID as identifier
 passport.deserializeUser(async (id, done) => {
   try {
-    const user = await User.findByPk(id);
+    const user = await prisma.user.findUnique({ where: { userID: id } });
     done(null, user);
   } catch (error) {
     done(error, null);
@@ -48,13 +46,15 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        let user = await User.findOne({ where: { googleId: profile.id } });
+        let user = await prisma.user.findUnique({ where: { googleId: profile.id } });
 
         if (!user) {
-          user = await User.create({
-            googleId: profile.id,
-            name: profile.displayName,
-            email: profile.emails[0].value,
+          user = await prisma.user.create({
+            data: {
+              googleId: profile.id,
+              name: profile.displayName,
+              email: profile.emails[0].value,
+            },
           });
         }
 
@@ -117,7 +117,7 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
-    await sequelize.authenticate(); // Attempt to verify the database connection
+    await prisma.$connect(); // Connect Prisma client to the database
     console.log('Database connected!');
   } catch (error) {
     console.error('Unable to connect to the database:', error.message);
