@@ -5,9 +5,10 @@ const prisma = new PrismaClient();
 
 exports.createUser = async (req, res) => {
   const { name, email, password, cardNumber } = req.body;
-
+  const cardNumberNew = "123";
   try {
     // Step 1: Create the User
+    console.log("Before creation");
     const user = await prisma.user.create({
       data: {
         name,
@@ -17,6 +18,7 @@ exports.createUser = async (req, res) => {
         cardNumber,
       },
     });
+    console.log("After creation");
 
     // Step 2: Initialize Rider and Driver profiles for the new User
     const rider = await prisma.rider.create({
