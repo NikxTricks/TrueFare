@@ -1,26 +1,28 @@
-// controllers/userController.js
-
+const bcrypt = require('bcrypt');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 exports.createUser = async (req, res) => {
   const { name, email, password, cardNumber } = req.body;
-  const cardNumberNew = "123";
+
   try {
-    // Step 1: Create the User
+    // Step 1: Hash the password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Step 2: Create the User
     console.log("Before creation");
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        password,
+        hashedPassword, // Store hashed password instead of plain text
         createdAt: new Date(),
         cardNumber,
       },
     });
     console.log("After creation");
 
-    // Step 2: Initialize Rider and Driver profiles for the new User
+    // Step 3: Initialize Rider and Driver profiles for the new User
     const rider = await prisma.rider.create({
       data: {
         userID: user.userID, // Foreign key to User
