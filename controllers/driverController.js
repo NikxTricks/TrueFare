@@ -36,7 +36,8 @@ exports.getDriverById = async (req, res) => {
   }
 };
 
-exports.updateDriverLocation = async (req, res) => {
+// Update an existing driver's location
+exports.updateLocation = async (req, res) => {
   const { latitude, longitude } = req.body;
   const driverID = parseInt(req.params.id);
 

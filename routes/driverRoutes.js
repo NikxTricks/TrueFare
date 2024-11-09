@@ -1,9 +1,9 @@
 const express = require('express');
-const { PrismaClient } = require('@prisma/client'); // Import Prisma Client
-const prisma = new PrismaClient();
+const { PrismaClient } = require('@prisma/client');
 const driverController = require('../controllers/driverController'); // Import driverController
-const router = express.Router();
 
+const prisma = new PrismaClient();
+const router = express.Router();
 
 // Create a new driver
 router.post('/', async (req, res) => {
@@ -15,7 +15,7 @@ router.post('/', async (req, res) => {
         userID,
         status,
         disabled,
-        location, // location is assumed to be a JSON object { type: 'Point', coordinates: [longitude, latitude] }
+        location, // location is expected to be in JSON format: { type: 'Point', coordinates: [longitude, latitude] }
       },
     });
     res.status(201).json(driver);
@@ -50,6 +50,8 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch driver' });
   }
 });
-router.put('/:id', driverController.updateDriverLocation);
+
+// Update a driver's location
+router.put('/:id/location', driverController.updateLocation);
 
 module.exports = router;
