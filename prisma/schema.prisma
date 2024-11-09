@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ENUM Definitions
+enum DriverStatus {
+  Active
+  Inactive
+}
+
+enum PaymentMethod {
+  Cash
+  Card
+  UPI
+}
+
+enum TripStatus {
+  Pending
+  Ongoing
+  Completed
+  Canceled
+}
+
+// Models
+
+model User {
+  userID    Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  Rider     Rider?
+  Driver    Driver?
+}
+
+model Rider {
+  riderID    Int       @id @default(autoincrement())
+  userID     Int       @unique
+  Trips      Trip[]    @relation("RiderTrips")
+
+  User       User      @relation(fields: [userID], references: [userID])
+}
+
+model Driver {
+  driverID   Int          @id @default(autoincrement())
+  userID     Int          @unique
+  status     DriverStatus @default(Inactive)
+  disabled   Boolean      @default(false)
+  location   Json?        // { "type": "Point", "coordinates": [longitude, latitude] }
+  Trips      Trip[]       @relation("DriverTrips")
+
+  User       User         @relation(fields: [userID], references: [userID])
+}
+
+model Trip {
+  id          Int         @id @default(autoincrement())
+  status      TripStatus  @default(Pending)
+  source      Json?       // { "type": "Point", "coordinates": [longitude, latitude] }
+  destination Json?       // { "type": "Point", "coordinates": [longitude, latitude] }
+  riderID     Int?
+  driverID    Int?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  Rider       Rider?      @relation("RiderTrips", fields: [riderID], references: [riderID])
+  Driver      Driver?     @relation("DriverTrips", fields: [driverID], references: [driverID])
+  Payment     Payment?
+}
+
+model Payment {
+  id        Int          @id @default(autoincrement())
+  method    PaymentMethod
+  amount    Float
+  tripID    Int          @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  Trip      Trip         @relation(fields: [tripID], references: [id])
+}

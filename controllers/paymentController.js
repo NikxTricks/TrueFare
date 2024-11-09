@@ -1,4 +1,5 @@
-const { Payment, Trip } = require('../models');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const { calculatePriceLogic } = require('./priceCalculator');
 
 // Create a new payment
@@ -6,10 +7,12 @@ exports.createPayment = async (req, res) => {
   try {
     const { tripID, method, pickupLat, pickupLng, dropoffLat, dropoffLng, driverLat, driverLng } = req.body;
 
+    // Validate required fields
     if (!tripID || !method) {
       return res.status(400).json({ message: 'tripID and method are required.' });
     }
 
+    // Validate coordinates
     if (
       !pickupLat || isNaN(pickupLat) ||
       !pickupLng || isNaN(pickupLng) ||
@@ -21,16 +24,20 @@ exports.createPayment = async (req, res) => {
       return res.status(400).json({ message: 'Invalid or missing coordinates' });
     }
 
+    // Calculate price based on coordinates
     const { price } = calculatePriceLogic(
       parseFloat(pickupLat), parseFloat(pickupLng),
       parseFloat(dropoffLat), parseFloat(dropoffLng),
       parseFloat(driverLat), parseFloat(driverLng)
     );
 
-    const payment = await Payment.create({
-      tripID,
-      method,
-      amount: price
+    // Create the payment in Prisma
+    const payment = await prisma.payment.create({
+      data: {
+        tripID,
+        method,
+        amount: price,
+      },
     });
 
     res.status(201).json(payment);
@@ -42,8 +49,10 @@ exports.createPayment = async (req, res) => {
 // Get all payments
 exports.getAllPayments = async (req, res) => {
   try {
-    const payments = await Payment.findAll({
-      include: { model: Trip }
+    const payments = await prisma.payment.findMany({
+      include: {
+        Trip: true, // Include related trip details
+      },
     });
     res.status(200).json(payments);
   } catch (error) {
@@ -54,8 +63,11 @@ exports.getAllPayments = async (req, res) => {
 // Get a payment by ID
 exports.getPaymentById = async (req, res) => {
   try {
-    const payment = await Payment.findByPk(req.params.id, {
-      include: { model: Trip }
+    const payment = await prisma.payment.findUnique({
+      where: { id: parseInt(req.params.id) },
+      include: {
+        Trip: true, // Include related trip details
+      },
     });
 
     if (!payment) {
