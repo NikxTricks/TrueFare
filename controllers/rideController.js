@@ -51,13 +51,16 @@ exports.createDriver = async (req, res) => {
 };
 
 // Find the closest driver for a given user location using the active drivers list
+
 exports.getClosestDriver = async (req, res) => {
   const { userLat, userLng } = req.query;
 
   console.log('Received request to find closest driver for:', { userLat, userLng });
+  console.log('Current active drivers:', activeDrivers); // Log all active drivers
 
   try {
     const availableDrivers = activeDrivers.filter((driver) => driver.is_available);
+    console.log('Available drivers for this request:', availableDrivers);
 
     if (availableDrivers.length === 0) {
       console.log('No available drivers found.');
@@ -68,9 +71,11 @@ exports.getClosestDriver = async (req, res) => {
     let closestDriver = null;
 
     availableDrivers.forEach((driver) => {
+      console.log(`Calculating distance with user coordinates: (${userLat}, ${userLng}) and driver coordinates: (${driver.current_latitude}, ${driver.current_longitude})`);
+
       const driverDistance = calculateDistance(
-        userLat,
-        userLng,
+        parseFloat(userLat),
+        parseFloat(userLng),
         driver.current_latitude,
         driver.current_longitude
       );
@@ -88,6 +93,8 @@ exports.getClosestDriver = async (req, res) => {
       return res.status(404).send('No nearby drivers found');
     }
 
+    console.log('Closest driver found:', closestDriver);
+
     res.status(200).json({
       driverID: closestDriver.driverID,
       distance: minDistance.toFixed(2) + ' km',
@@ -95,6 +102,25 @@ exports.getClosestDriver = async (req, res) => {
   } catch (error) {
     console.error('Error finding the closest driver:', error);
     res.status(500).send('Error finding the closest driver');
+  }
+};
+
+
+// Process payment via Stripe
+exports.processPayment = async (req, res) => {
+  const { amount, currency, paymentMethodId } = req.body;
+
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency,
+      payment_method: paymentMethodId,
+      confirm: true,
+    });
+
+    res.status(200).send('Payment successful');
+  } catch (error) {
+    res.status(500).send('Error processing payment');
   }
 };
 
