@@ -100,13 +100,14 @@ exports.getClosestDriver = async (req, res) => {
 
 // Process payment via Stripe
 exports.processPayment = async (req, res) => {
-  const { amount, currency, paymentMethodId } = req.body;
+  const { amount, currency } = req.body;
 
   try {
+    // use test payment method for automatic success
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency,
-      payment_method: paymentMethodId,
+      payment_method: 'pm_card_visa', // Test card provided by Stripe; will always succeed
       confirm: true,
     });
 
@@ -115,6 +116,7 @@ exports.processPayment = async (req, res) => {
     res.status(500).send('Error processing payment');
   }
 };
+
 
 // Send real-time notification to the driver
 exports.sendNotificationToDriver = (req, res) => {
@@ -213,3 +215,72 @@ exports.setDriverInactive = (req, res) => {
 
   res.status(200).json({ message: `Driver ${driverID} is now inactive` });
 };
+
+exports.rideConfirm = async (req, res) => {
+  const { price, source, destination, riderID, paymentMethodId, currency = 'usd' } = req.body;
+
+  try {
+    //process payment 
+    console.log("Processing payment for rider:", riderID);
+    const paymentResponse = await exports.processPayment({
+      body: { amount: Math.round(price * 100), currency, paymentMethodId }
+    }, {
+      status: () => ({ send: (message) => message }),
+    });
+
+    //check if payment was successful
+    if (paymentResponse !== 'Payment successful') {
+      return res.status(400).json({ message: 'Payment failed' });
+    }
+
+    console.log("Payment successful for rider:", riderID);
+
+
+    let driverAssigned = false;
+    let potentialDriver;
+
+    // Keep finding the closest driver until one accepts or no drivers are left
+    while (!driverAssigned) {
+
+      const closestDriverResponse = await exports.getClosestDriver({
+        query: { userLat: source.latitude, userLng: source.longitude }
+      }, {
+        status: (code) => ({
+          json: (data) => ({ code, data }),
+          send: (message) => ({ code, message }),
+        })
+      });
+      if (closestDriverResponse.code === 404) {
+        return res.status(404).json({ message: 'No available drivers found' });
+      }
+
+      potentialDriver = closestDriverResponse.data;
+
+      // Notify the driver, see if they accept or not 
+      const notificationResult = await notifyDriver(riderID, source, destination, price, potentialDriver);
+
+      // assuming result from notifyDriver is true or false 
+      if (notificationResult) {
+        // driver accepted the ride
+        driverAssigned = true;
+        console.log(`Driver ${potentialDriver.driverID} accepted the ride`);
+      } else {
+        // If the driver declines, remove them from the active driver list temporarily
+        activeDrivers = activeDrivers.filter(driver => driver.driverID !== potentialDriver.driverID);
+      }
+    }
+
+    // return the driver details
+    res.status(200).json({
+      message: 'Driver assigned',
+      driverID: potentialDriver.driverID,
+      distance: potentialDriver.distance,
+    });
+    
+  } catch (error) {
+    console.error('Error in ride confirmation:', error.message);
+    res.status(500).json({ message: 'Ride confirmation failed', error: error.message });
+  }
+};
+
+
