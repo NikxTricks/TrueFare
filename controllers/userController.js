@@ -14,6 +14,7 @@ exports.createUser = async (req, res) => {
         email,
         password,
         createdAt: new Date(),
+        cardNumber,
       },
     });
 
