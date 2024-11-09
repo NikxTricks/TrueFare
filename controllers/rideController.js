@@ -223,6 +223,7 @@ exports.setDriverInactive = (req, res) => {
 };
 
 
+<<<<<<< HEAD
 const customerEmail = "test";
 async function getPaymentMethodIdByEmail(email) {
   try {
@@ -243,10 +244,14 @@ async function getPaymentMethodIdByEmail(email) {
 }
 
 // Process payment via Stripe with Prisma-based retrieval
+=======
+// Process payment via Stripe
+>>>>>>> 699fe52 (notify driver implementation)
 exports.processPayment = async (req, res) => {
   const { amount, currency } = req.body;
 
   try {
+<<<<<<< HEAD
     // Fetch the paymentMethodId from the database
     const paymentMethodId = await getPaymentMethodIdByEmail(customerEmail);
 
@@ -255,17 +260,30 @@ exports.processPayment = async (req, res) => {
       amount,
       currency,
       payment_method: paymentMethodId,  // Use payment method retrieved from Prisma
+=======
+    // use test payment method for automatic success
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency,
+      payment_method: 'pm_card_visa', // Test card provided by Stripe; will always succeed
+>>>>>>> 699fe52 (notify driver implementation)
       confirm: true,
     });
 
     res.status(200).send('Payment successful');
   } catch (error) {
+<<<<<<< HEAD
     console.error('Error processing payment:', error);
     res.status(500).send('Error processing payment');
   }
 };
 
 
+=======
+    res.status(500).send('Error processing payment');
+  }
+};
+>>>>>>> 699fe52 (notify driver implementation)
 exports.rideConfirm = async (req, res) => {
   const { price, source, destination, riderID, paymentMethodId, currency = 'usd' } = req.body;
 
@@ -332,5 +350,42 @@ exports.rideConfirm = async (req, res) => {
     res.status(500).json({ message: 'Ride confirmation failed', error: error.message });
   }
 };
+// Notify the driver of a new ride and await their response
+function notifyDriver(riderID, source, destination, price, driver) {
+  return new Promise((resolve) => {
+    // Prepare the ride details to send to the driver
+    const rideDetails = {
+      riderID,
+      pickupLocation: source,
+      dropoffLocation: destination,
+      price: price, // Amount the driver will earn
+      distance: calculateDistance(source.latitude, source.longitude, driver.current_latitude, driver.current_longitude).toFixed(2) + ' km',
+      // estimatedTime: '10 mins', need to implement 
+    };
+
+    // Emit the 'rideAssigned' event to the specific driver
+    io.to(`driver_${driver.driverID}`).emit('rideAssigned', rideDetails);
+
+    console.log(`Notified driver ${driver.driverID} with ride details`, rideDetails);
+
+    // Listen for the driver's response (accept or decline)
+    const responseHandler = (response) => {
+      if (response.accepted) {
+        console.log(`Driver ${driver.driverID} accepted the ride`);
+        resolve(true);
+      } else {
+        console.log(`Driver ${driver.driverID} declined the ride`);
+        resolve(false);
+      }
+
+      // Remove the listener after receiving a response
+      io.to(`driver_${driver.driverID}`).off('rideResponse', responseHandler);
+    };
+
+    // Attach the response listener to the driver's channel
+    io.to(`driver_${driver.driverID}`).on('rideResponse', responseHandler);
+  });
+}
+
 
 
