@@ -9,7 +9,6 @@ const app = express();
 const http = require('http').createServer(app); // Create HTTP server for Socket.io
 const io = require('./socket').init(http); // Initialize Socket.io using socket.js
 const prisma = new PrismaClient(); // Initialize Prisma client
-
 app.use(express.json());
 
 const cors = require('cors');
@@ -88,6 +87,8 @@ app.get('/dashboard', (req, res) => {
 
 // Import routes
 const riderRoutes = require('./routes/riderRoutes');
+app.use('/api', riderRoutes); // Mounts routes at /api
+
 const driverRoutes = require('./routes/driverRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
