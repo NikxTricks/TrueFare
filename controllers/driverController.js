@@ -35,3 +35,21 @@ exports.getDriverById = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.updateDriverLocation = async (req, res) => {
+  const { latitude, longitude } = req.body;
+  const driverID = parseInt(req.params.id);
+
+  try {
+    const updatedDriver = await prisma.driver.update({
+      where: { driverID },
+      data: {
+        location: { type: 'Point', coordinates: [longitude, latitude] },
+      },
+    });
+    res.status(200).json(updatedDriver);
+  } catch (error) {
+    console.error('Error updating driver location:', error);
+    res.status(500).json({ error: 'Failed to update driver location' });
+  }
+};
