@@ -1,6 +1,9 @@
+// controllers/driverController.js
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// Create a new driver
 exports.createDriver = async (req, res) => {
   try {
     const driver = await prisma.driver.create({
@@ -11,33 +14,57 @@ exports.createDriver = async (req, res) => {
     });
     res.status(201).json(driver);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error('Error creating driver:', error);
+    res.status(400).json({ error: 'Failed to create driver' });
   }
 };
 
+// Get all drivers
 exports.getAllDrivers = async (req, res) => {
   try {
     const drivers = await prisma.driver.findMany();
     res.status(200).json(drivers);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching drivers:', error);
+    res.status(500).json({ error: 'Failed to fetch drivers' });
   }
 };
 
+// Get a driver by driverID
 exports.getDriverById = async (req, res) => {
   try {
-    const driver = await prisma.driver.findUnique({ where: { id: parseInt(req.params.id) } });
+    const driverID = parseInt(req.params.id);
+    const driver = await prisma.driver.findUnique({ where: { driverID } });
     if (!driver) {
       return res.status(404).json({ message: 'Driver not found' });
     }
     res.status(200).json(driver);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching driver by ID:', error);
+    res.status(500).json({ error: 'Failed to fetch driver' });
+  }
+};
+
+// Get a driver by userID
+exports.getDriverByUserId = async (req, res) => {
+  try {
+    const userID = parseInt(req.params.userID);
+    const driver = await prisma.driver.findUnique({
+      where: { userID },
+      select: { driverID: true },
+    });
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+    res.status(200).json(driver);
+  } catch (error) {
+    console.error('Error fetching driver by userID:', error);
+    res.status(500).json({ error: 'Failed to fetch driver' });
   }
 };
 
 // Update an existing driver's location
-exports.updateLocation = async (req, res) => {
+exports.updateDriverLocation = async (req, res) => {
   const { latitude, longitude } = req.body;
   const driverID = parseInt(req.params.id);
 
@@ -48,7 +75,7 @@ exports.updateLocation = async (req, res) => {
         location: { type: 'Point', coordinates: [longitude, latitude] },
       },
     });
-    res.status(200).json(updatedDriver);
+    res.status(200).json({ message: 'Driver location updated', driver: updatedDriver });
   } catch (error) {
     console.error('Error updating driver location:', error);
     res.status(500).json({ error: 'Failed to update driver location' });

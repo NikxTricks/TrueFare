@@ -159,57 +159,62 @@ exports.acceptRider = async (req, res) => {
 };
 
 // Assign the closest driver to the ride using active drivers list
-exports.assignClosestDriver = (req, res) => {
-  const { pickupLat, pickupLng, dropoffLat, dropoffLng, pickupLocation, dropoffLocation, price } = req.body;
-  console.log('Received ride assignment request:', req.body);
+exports.getClosestDriver = async (req, res) => {
+  const { userLat, userLng } = req.query;
 
-  const distance = calculateDistance(pickupLat, pickupLng, dropoffLat, dropoffLng);
-  const availableDrivers = activeDrivers.filter((d) => d.is_available);
+  console.log('Received request to find closest driver for:', { userLat, userLng });
 
-  if (availableDrivers.length === 0) {
-    console.log('No available drivers');
-    return res.status(404).send('No available drivers');
-  }
+  try {
+    // Fetch all available drivers from the database with their latest location
+    const availableDrivers = await prisma.driver.findMany({
+      where: { status: 'Active', is_available: true },
+      select: {
+        driverID: true,
+        location: true, // Assuming location is stored as { type: 'Point', coordinates: [longitude, latitude] }
+      },
+    });
 
-  let closestDriver = null;
-  let minDistance = Infinity;
-
-  availableDrivers.forEach((driver) => {
-    const driverDistance = calculateDistance(
-      pickupLat,
-      pickupLng,
-      driver.current_latitude,
-      driver.current_longitude
-    );
-    if (driverDistance < minDistance) {
-      minDistance = driverDistance;
-      closestDriver = driver;
+    if (availableDrivers.length === 0) {
+      console.log('No available drivers found.');
+      return res.status(404).send('No available drivers found');
     }
-  });
 
-  if (!closestDriver) {
-    console.log('No nearby drivers found');
-    return res.status(404).send('No nearby drivers found');
+    let minDistance = Infinity;
+    let closestDriver = null;
+
+    // Iterate over available drivers to find the closest one
+    availableDrivers.forEach((driver) => {
+      const [driverLng, driverLat] = driver.location.coordinates;
+      const driverDistance = calculateDistance(
+        parseFloat(userLat),
+        parseFloat(userLng),
+        driverLat,
+        driverLng
+      );
+
+      if (driverDistance < minDistance) {
+        minDistance = driverDistance;
+        closestDriver = driver;
+      }
+    });
+
+    if (!closestDriver) {
+      console.log('No nearby drivers found.');
+      return res.status(404).send('No nearby drivers found');
+    }
+
+    console.log('Closest driver found:', closestDriver);
+
+    // Store closest driver in the response
+    res.status(200).json({
+      driverID: closestDriver.driverID,
+      distance: minDistance.toFixed(2) + ' km',
+      location: closestDriver.location,
+    });
+  } catch (error) {
+    console.error('Error finding the closest driver:', error);
+    res.status(500).send('Error finding the closest driver');
   }
-
-  const rideDetails = {
-    pickupLocation,
-    dropoffLocation,
-    distance: distance.toFixed(2) + ' km',
-    price,
-  };
-
-  io.to(`driver_${closestDriver.driverID}`).emit('rideAssigned', {
-    message: 'New ride assigned to you',
-    rideDetails,
-  });
-
-  console.log(`Ride assigned to driver ${closestDriver.driverID}`);
-  res.status(200).json({
-    message: `Ride assigned to driver ${closestDriver.driverID}`,
-    rideDetails,
-    driverDistance: minDistance.toFixed(2) + ' km',
-  });
 };
 
 // Set a driver to inactive and remove them from the active drivers list

@@ -1,11 +1,11 @@
+// driverRoutes.js
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
-const driverController = require('../controllers/driverController'); // Import driverController
+const driverController = require('../controllers/driverController');
 
 const prisma = new PrismaClient();
 const router = express.Router();
 
-// Create a new driver
 router.post('/', async (req, res) => {
   const { userID, status, disabled, location } = req.body;
 
@@ -15,7 +15,7 @@ router.post('/', async (req, res) => {
         userID,
         status,
         disabled,
-        location, // location is expected to be in JSON format: { type: 'Point', coordinates: [longitude, latitude] }
+        location,
       },
     });
     res.status(201).json(driver);
@@ -25,7 +25,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get all drivers
 router.get('/', async (req, res) => {
   try {
     const drivers = await prisma.driver.findMany();
@@ -36,7 +35,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get a driver by ID
 router.get('/:id', async (req, res) => {
   try {
     const driverID = parseInt(req.params.id);
@@ -51,7 +49,23 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Update a driver's location
-router.put('/:id/location', driverController.updateLocation);
+// Get driverID by userID
+router.get('/user/:userID', async (req, res) => {
+  try {
+    const userID = parseInt(req.params.userID);
+    const driver = await prisma.driver.findUnique({
+      where: { userID },
+      select: { driverID: true }
+    });
+    if (!driver) return res.status(404).json({ error: 'Driver not found' });
+    res.json(driver);
+  } catch (error) {
+    console.error('Error fetching driver by userID:', error);
+    res.status(500).json({ error: 'Failed to fetch driver' });
+  }
+});
+
+// Update driver location
+router.put('/:id/location', driverController.updateDriverLocation);
 
 module.exports = router;
