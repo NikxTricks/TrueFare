@@ -7,11 +7,18 @@ const passport = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const userService = require('./services/userService'); // Import userService
 
-// Import Prisma
+// Import Prisma with error handling
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+prisma.$connect()
+  .then(() => console.log("Prisma connected successfully"))
+  .catch(err => console.error("Failed to connect to Prisma", err));
+
 const app = express();
+
+// Log to confirm the app is starting
+console.log("Starting application...");
 
 // Middleware
 app.use(express.json());
@@ -19,7 +26,7 @@ app.use(express.json());
 // Configure session middleware
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || GOOGLE_CLIENT_SECRET, // Use a secure secret in production
+    secret: process.env.SESSION_SECRET || 'your_secret_key', // Use a secure secret in production
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -127,6 +134,7 @@ app.use('/rides', rideRoutes);
 const PORT = process.env.PORT || 3000;
 
 const shutdown = async () => {
+  console.log("Shutting down gracefully...");
   await prisma.$disconnect(); // Ensure Prisma disconnects on shutdown
   process.exit(0);
 };
