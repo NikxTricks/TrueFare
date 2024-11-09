@@ -1,3 +1,5 @@
+
+
 const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
@@ -10,6 +12,10 @@ const http = require('http').createServer(app); // Create HTTP server for Socket
 const io = require('./socket').init(http); // Initialize Socket.io using socket.js
 
 app.use(express.json());
+
+const cors = require('cors');
+app.use(cors({ origin: 'http://localhost:3001' }));
+
 
 app.use(
   session({
