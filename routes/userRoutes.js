@@ -6,5 +6,6 @@ const userController = require('../controllers/userController');
 
 // Define user-related routes
 router.post('/create', userController.createUser);
+router.post('/verify', userController.verifyUser);
 
 module.exports = router;

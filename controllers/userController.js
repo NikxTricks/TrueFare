@@ -47,3 +47,35 @@ exports.createUser = async (req, res) => {
     res.status(500).json({ error: 'Failed to create user' });
   }
 };
+
+exports.verifyUser = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Find the user by email
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user || !user.hashedPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Compare the provided password with the hashed password
+    const isPasswordCorrect = await bcrypt.compare(password, user.hashedPassword);
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // If verification is successful, return the user data
+    res.status(200).json({ message: 'User verified', user });
+  } catch (error) {
+    console.error('Error verifying user:', error.message);
+    res.status(500).json({ error: 'Error verifying user' });
+  }
+};
