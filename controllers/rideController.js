@@ -23,32 +23,25 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 exports.createDriver = async (req, res) => {
   const { driverID, latitude, longitude } = req.body;
 
-  const newDriver = {
-    driverID,
-    current_latitude: latitude,
-    current_longitude: longitude,
-    is_available: true,
-  };
-
-  // Add the driver to the active drivers list
-  activeDrivers.push(newDriver);
-  console.log('Driver added to active list:', newDriver);
-
   try {
-    // Attempt to add driver to the database (if enabled)
-    await prisma.driver.create({
+    // Add the driver to the database
+    const newDriver = await prisma.driver.create({
       data: {
         userID: driverID,
         location: { type: 'Point', coordinates: [longitude, latitude] },
         status: 'Active',
+        disabled: false,
       },
     });
-    res.status(201).json({ message: 'Driver created and added to active list and database' });
+
+    console.log('Driver added to database:', newDriver);
+    res.status(201).json({ message: 'Driver created and added to database' });
   } catch (error) {
     console.error('Database error (driver creation failed):', error.message);
-    res.status(201).json({ message: 'Driver created and added to active list only (database not available)' });
+    res.status(500).json({ message: 'Driver creation failed' });
   }
 };
+
 
 // Find the closest driver for a given user location using the active drivers list
 
@@ -59,8 +52,10 @@ exports.getClosestDriver = async (req, res) => {
   console.log('Current active drivers:', activeDrivers); // Log all active drivers
 
   try {
-    const availableDrivers = activeDrivers.filter((driver) => driver.is_available);
-    console.log('Available drivers for this request:', availableDrivers);
+    // Fetch available drivers from the database
+    const availableDrivers = await prisma.driver.findMany({
+      where: { status: 'Active', disabled: false },
+    });
 
     if (availableDrivers.length === 0) {
       console.log('No available drivers found.');
@@ -108,21 +103,33 @@ exports.getClosestDriver = async (req, res) => {
 
 // Process payment via Stripe
 exports.processPayment = async (req, res) => {
-  const { amount, currency, paymentMethodId } = req.body;
+  const { amount, currency, email } = req.body;
 
   try {
+    // Fetch the payment method for the user based on email
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { cardNumber: true },
+    });
+
+    if (!user || !user.cardNumber) {
+      return res.status(400).json({ message: 'Payment method not found for this user' });
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency,
-      payment_method: paymentMethodId,
+      payment_method: user.cardNumber, 
       confirm: true,
     });
 
     res.status(200).send('Payment successful');
   } catch (error) {
+    console.error('Error processing payment:', error);
     res.status(500).send('Error processing payment');
   }
 };
+
 
 // Send real-time notification to the driver
 exports.sendNotificationToDriver = (req, res) => {
@@ -218,14 +225,23 @@ exports.getClosestDriver = async (req, res) => {
 };
 
 // Set a driver to inactive and remove them from the active drivers list
-exports.setDriverInactive = (req, res) => {
+exports.setDriverInactive = async (req, res) => {
   const { driverID } = req.body;
 
-  activeDrivers = activeDrivers.filter((driver) => driver.driverID !== driverID);
-  console.log(`Driver ${driverID} set to inactive and removed from active list`);
+  try {
+    await prisma.driver.update({
+      where: { driverID },
+      data: { status: 'Inactive', disabled: true },
+    });
 
-  res.status(200).json({ message: `Driver ${driverID} is now inactive` });
+    console.log(`Driver ${driverID} set to inactive`);
+    res.status(200).json({ message: `Driver ${driverID} is now inactive` });
+  } catch (error) {
+    console.error(`Failed to set driver ${driverID} as inactive:`, error.message);
+    res.status(500).json({ message: `Failed to set driver ${driverID} as inactive` });
+  }
 };
+
 
 
 const customerEmail = "test";
@@ -271,31 +287,28 @@ exports.processPayment = async (req, res) => {
 };
 
 exports.rideConfirm = async (req, res) => {
-  const { price, source, destination, riderID, paymentMethodId, currency = 'usd' } = req.body;
+  const { price, source, destination, riderID, currency = 'usd', email } = req.body;
 
   try {
-    //process payment 
+    // Process payment first
     console.log("Processing payment for rider:", riderID);
     const paymentResponse = await exports.processPayment({
-      body: { amount: Math.round(price * 100), currency, paymentMethodId }
+      body: { amount: Math.round(price * 100), currency, email }
     }, {
       status: () => ({ send: (message) => message }),
     });
 
-    //check if payment was successful
     if (paymentResponse !== 'Payment successful') {
       return res.status(400).json({ message: 'Payment failed' });
     }
 
     console.log("Payment successful for rider:", riderID);
 
-
     let driverAssigned = false;
     let potentialDriver;
 
     // Keep finding the closest driver until one accepts or no drivers are left
     while (!driverAssigned) {
-
       const closestDriverResponse = await exports.getClosestDriver({
         query: { userLat: source.latitude, userLng: source.longitude }
       }, {
@@ -304,27 +317,29 @@ exports.rideConfirm = async (req, res) => {
           send: (message) => ({ code, message }),
         })
       });
+
       if (closestDriverResponse.code === 404) {
         return res.status(404).json({ message: 'No available drivers found' });
       }
 
       potentialDriver = closestDriverResponse.data;
 
-      // Notify the driver, see if they accept or not 
+      // Notify the driver and wait for response
       const notificationResult = await notifyDriver(riderID, source, destination, price, potentialDriver);
 
-      // assuming result from notifyDriver is true or false 
       if (notificationResult) {
-        // driver accepted the ride
+        // Driver accepted the ride
         driverAssigned = true;
         console.log(`Driver ${potentialDriver.driverID} accepted the ride`);
       } else {
-        // If the driver declines, remove them from the active driver list temporarily
-        activeDrivers = activeDrivers.filter(driver => driver.driverID !== potentialDriver.driverID);
+        // Update driver availability in the database
+        await prisma.driver.update({
+          where: { driverID: potentialDriver.driverID },
+          data: { status: 'Inactive' },
+        });
       }
     }
 
-    // return the driver details
     res.status(200).json({
       message: 'Driver assigned',
       driverID: potentialDriver.driverID,
@@ -336,6 +351,72 @@ exports.rideConfirm = async (req, res) => {
     res.status(500).json({ message: 'Ride confirmation failed', error: error.message });
   }
 };
+
+//   const { price, source, destination, riderID, paymentMethodId, currency = 'usd' } = req.body;
+
+//   try {
+//     //process payment 
+//     console.log("Processing payment for rider:", riderID);
+//     const paymentResponse = await exports.processPayment({
+//       body: { amount: Math.round(price * 100), currency, paymentMethodId }
+//     }, {
+//       status: () => ({ send: (message) => message }),
+//     });
+
+//     //check if payment was successful
+//     if (paymentResponse !== 'Payment successful') {
+//       return res.status(400).json({ message: 'Payment failed' });
+//     }
+
+//     console.log("Payment successful for rider:", riderID);
+
+
+//     let driverAssigned = false;
+//     let potentialDriver;
+
+//     // Keep finding the closest driver until one accepts or no drivers are left
+//     while (!driverAssigned) {
+
+//       const closestDriverResponse = await exports.getClosestDriver({
+//         query: { userLat: source.latitude, userLng: source.longitude }
+//       }, {
+//         status: (code) => ({
+//           json: (data) => ({ code, data }),
+//           send: (message) => ({ code, message }),
+//         })
+//       });
+//       if (closestDriverResponse.code === 404) {
+//         return res.status(404).json({ message: 'No available drivers found' });
+//       }
+
+//       potentialDriver = closestDriverResponse.data;
+
+//       // Notify the driver, see if they accept or not 
+//       const notificationResult = await notifyDriver(riderID, source, destination, price, potentialDriver);
+
+//       // assuming result from notifyDriver is true or false 
+//       if (notificationResult) {
+//         // driver accepted the ride
+//         driverAssigned = true;
+//         console.log(`Driver ${potentialDriver.driverID} accepted the ride`);
+//       } else {
+//         // If the driver declines, remove them from the active driver list temporarily
+//         activeDrivers = activeDrivers.filter(driver => driver.driverID !== potentialDriver.driverID);
+//       }
+//     }
+
+//     // return the driver details
+//     res.status(200).json({
+//       message: 'Driver assigned',
+//       driverID: potentialDriver.driverID,
+//       distance: potentialDriver.distance,
+//     });
+    
+//   } catch (error) {
+//     console.error('Error in ride confirmation:', error.message);
+//     res.status(500).json({ message: 'Ride confirmation failed', error: error.message });
+//   }
+// };
 // Notify the driver of a new ride and await their response
 function notifyDriver(riderID, source, destination, price, driver) {
   return new Promise((resolve) => {
