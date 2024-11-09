@@ -1,40 +1,38 @@
-const bcrypt = require('bcrypt');
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 exports.createUser = async (req, res) => {
   const { name, email, password, cardNumber } = req.body;
 
   try {
-    // Step 1: Hash the password
+    // Hash the password on the backend
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Step 2: Create the User
+    // Create the User with the hashed password
     console.log("Before creation");
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        hashedPassword, // Store hashed password instead of plain text
+        password: hashedPassword, // Store hashed password here
         createdAt: new Date(),
         cardNumber,
       },
     });
     console.log("After creation");
 
-    // Step 3: Initialize Rider and Driver profiles for the new User
+    // Initialize Rider and Driver profiles for the new User
     const rider = await prisma.rider.create({
-      data: {
-        userID: user.userID, // Foreign key to User
-      },
+      data: { userID: user.userID },
     });
 
     const driver = await prisma.driver.create({
       data: {
-        userID: user.userID, // Foreign key to User
-        status: 'Inactive', // Set initial status
+        userID: user.userID,
+        status: 'Inactive',
         disabled: false,
-        location: { type: 'Point', coordinates: [0, 0] }, // Set default location
+        location: { type: 'Point', coordinates: [0, 0] },
       },
     });
 
@@ -59,22 +57,19 @@ exports.verifyUser = async (req, res) => {
     }
 
     // Find the user by email
-    const user = await prisma.user.findUnique({
-      where: { email }
-    });
+    const user = await prisma.user.findUnique({ where: { email } });
 
-    if (!user || !user.hashedPassword) {
+    if (!user || !user.password) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // Compare the provided password with the hashed password
-    const isPasswordCorrect = await bcrypt.compare(password, user.hashedPassword);
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
     if (!isPasswordCorrect) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // If verification is successful, return the user data
     res.status(200).json({ message: 'User verified', user });
   } catch (error) {
     console.error('Error verifying user:', error.message);
