@@ -1,19 +1,20 @@
 const axios = require('axios');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Assuming Stripe is used for payments
 const io = require('../socket').getIO(); // Import Socket.io instance from socket.js
-const { Driver } = require('../models'); // Ensure this is the correct path to your models
+const { PrismaClient } = require('@prisma/client'); // Import Prisma client
+const prisma = new PrismaClient(); // Initialize Prisma client
 
 // In-memory list of active drivers (temporary storage for local use)
 let activeDrivers = [];
 
 // Helper function to calculate distance between two coordinates
 function calculateDistance(lat1, lon1, lat2, lon2) {
-  const toRad = value => (value * Math.PI) / 180;
+  const toRad = (value) => (value * Math.PI) / 180;
   const R = 6371;  // Earth's radius in km
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;  // Distance in km
 }
@@ -22,12 +23,11 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 exports.createDriver = async (req, res) => {
   const { driverID, latitude, longitude } = req.body;
 
-  // Create a driver object
   const newDriver = {
     driverID,
     current_latitude: latitude,
     current_longitude: longitude,
-    is_available: true
+    is_available: true,
   };
 
   // Add the driver to the active drivers list
@@ -36,7 +36,13 @@ exports.createDriver = async (req, res) => {
 
   try {
     // Attempt to add driver to the database (if enabled)
-    await Driver.create({ driverID, location: { type: 'Point', coordinates: [longitude, latitude] }, status: 'Active' });
+    await prisma.driver.create({
+      data: {
+        userID: driverID,
+        location: { type: 'Point', coordinates: [longitude, latitude] },
+        status: 'Active',
+      },
+    });
     res.status(201).json({ message: 'Driver created and added to active list and database' });
   } catch (error) {
     console.error('Database error (driver creation failed):', error.message);
@@ -51,7 +57,7 @@ exports.getClosestDriver = async (req, res) => {
   console.log('Received request to find closest driver for:', { userLat, userLng });
 
   try {
-    const availableDrivers = activeDrivers.filter(driver => driver.is_available);
+    const availableDrivers = activeDrivers.filter((driver) => driver.is_available);
 
     if (availableDrivers.length === 0) {
       console.log('No available drivers found.');
@@ -61,7 +67,7 @@ exports.getClosestDriver = async (req, res) => {
     let minDistance = Infinity;
     let closestDriver = null;
 
-    availableDrivers.forEach(driver => {
+    availableDrivers.forEach((driver) => {
       const driverDistance = calculateDistance(
         userLat,
         userLng,
@@ -82,14 +88,9 @@ exports.getClosestDriver = async (req, res) => {
       return res.status(404).send('No nearby drivers found');
     }
 
-    console.log('Closest driver found:', {
-      driverID: closestDriver.driverID,
-      distance: minDistance.toFixed(2) + ' km'
-    });
-
     res.status(200).json({
       driverID: closestDriver.driverID,
-      distance: minDistance.toFixed(2) + ' km'
+      distance: minDistance.toFixed(2) + ' km',
     });
   } catch (error) {
     console.error('Error finding the closest driver:', error);
@@ -119,7 +120,6 @@ exports.processPayment = async (req, res) => {
 exports.sendNotificationToDriver = (req, res) => {
   const { driverID } = req.body;
 
-  // Notify the driver via WebSocket
   io.to(`driver_${driverID}`).emit('rideAssigned', { message: 'New ride assigned to you' });
 
   res.status(200).send('Notification sent to driver');
@@ -130,7 +130,7 @@ exports.acceptRider = async (req, res) => {
   const { rideID, driverID } = req.body;
 
   try {
-    let ride = mockRides.find(r => r.rideID === rideID);
+    let ride = mockRides.find((r) => r.rideID === rideID);
     if (!ride) {
       return res.status(404).send('Ride not found');
     }
@@ -156,7 +156,7 @@ exports.assignClosestDriver = (req, res) => {
   console.log('Received ride assignment request:', req.body);
 
   const distance = calculateDistance(pickupLat, pickupLng, dropoffLat, dropoffLng);
-  const availableDrivers = activeDrivers.filter(d => d.is_available);
+  const availableDrivers = activeDrivers.filter((d) => d.is_available);
 
   if (availableDrivers.length === 0) {
     console.log('No available drivers');
@@ -166,7 +166,7 @@ exports.assignClosestDriver = (req, res) => {
   let closestDriver = null;
   let minDistance = Infinity;
 
-  availableDrivers.forEach(driver => {
+  availableDrivers.forEach((driver) => {
     const driverDistance = calculateDistance(
       pickupLat,
       pickupLng,
@@ -191,27 +191,24 @@ exports.assignClosestDriver = (req, res) => {
     price,
   };
 
-  // Notify the closest driver via WebSocket
   io.to(`driver_${closestDriver.driverID}`).emit('rideAssigned', {
     message: 'New ride assigned to you',
-    rideDetails
+    rideDetails,
   });
 
   console.log(`Ride assigned to driver ${closestDriver.driverID}`);
   res.status(200).json({
     message: `Ride assigned to driver ${closestDriver.driverID}`,
     rideDetails,
-    driverDistance: minDistance.toFixed(2) + ' km'
+    driverDistance: minDistance.toFixed(2) + ' km',
   });
 };
-
 
 // Set a driver to inactive and remove them from the active drivers list
 exports.setDriverInactive = (req, res) => {
   const { driverID } = req.body;
 
-  // Remove driver from active drivers list
-  activeDrivers = activeDrivers.filter(driver => driver.driverID !== driverID);
+  activeDrivers = activeDrivers.filter((driver) => driver.driverID !== driverID);
   console.log(`Driver ${driverID} set to inactive and removed from active list`);
 
   res.status(200).json({ message: `Driver ${driverID} is now inactive` });
