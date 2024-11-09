@@ -98,26 +98,6 @@ exports.getClosestDriver = async (req, res) => {
   }
 };
 
-// Process payment via Stripe
-exports.processPayment = async (req, res) => {
-  const { amount, currency } = req.body;
-
-  try {
-    // use test payment method for automatic success
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency,
-      payment_method: 'pm_card_visa', // Test card provided by Stripe; will always succeed
-      confirm: true,
-    });
-
-    res.status(200).send('Payment successful');
-  } catch (error) {
-    res.status(500).send('Error processing payment');
-  }
-};
-
-
 // Send real-time notification to the driver
 exports.sendNotificationToDriver = (req, res) => {
   const { driverID } = req.body;
@@ -215,6 +195,50 @@ exports.setDriverInactive = (req, res) => {
 
   res.status(200).json({ message: `Driver ${driverID} is now inactive` });
 };
+
+
+const customerEmail = "test";
+async function getPaymentMethodIdByEmail(email) {
+  try {
+    const customer = await prisma.user.findUnique({
+      where: { email: email },
+      select: { paymentMethodId: true }  // Assume 'paymentMethodId' is stored in the user model
+    });
+
+    if (!customer || !customer.paymentMethodId) {
+      throw new Error('Payment method not found for this email');
+    }
+
+    return customer.paymentMethodId;
+  } catch (error) {
+    console.error('Error fetching payment method:', error);
+    throw error;
+  }
+}
+
+// Process payment via Stripe with Prisma-based retrieval
+exports.processPayment = async (req, res) => {
+  const { amount, currency } = req.body;
+
+  try {
+    // Fetch the paymentMethodId from the database
+    const paymentMethodId = await getPaymentMethodIdByEmail(customerEmail);
+
+    // Process payment with the retrieved payment method
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency,
+      payment_method: paymentMethodId,  // Use payment method retrieved from Prisma
+      confirm: true,
+    });
+
+    res.status(200).send('Payment successful');
+  } catch (error) {
+    console.error('Error processing payment:', error);
+    res.status(500).send('Error processing payment');
+  }
+};
+
 
 exports.rideConfirm = async (req, res) => {
   const { price, source, destination, riderID, paymentMethodId, currency = 'usd' } = req.body;
