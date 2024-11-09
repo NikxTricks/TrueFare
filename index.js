@@ -13,7 +13,9 @@ const prisma = new PrismaClient(); // Initialize Prisma client
 app.use(express.json());
 
 const cors = require('cors');
-app.use(cors({ origin: 'http://localhost:3001' }));
+
+// Allow all origins
+app.use(cors({ origin: true }));
 
 app.use(
   session({
@@ -22,6 +24,7 @@ app.use(
     saveUninitialized: true,
   })
 );
+
 
 app.use(passport.initialize());
 app.use(passport.session());
