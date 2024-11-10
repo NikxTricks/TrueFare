@@ -86,3 +86,22 @@ exports.cancelTrip = async (req, res) => {
     res.status(500).json({ error: 'Failed to cancel trip' });
   }
 };
+
+exports.getTripSourceDestination = async (req, res) => {
+  const tripID = parseInt(req.params.id);
+  try {
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripID },
+      select: {
+        source: true,
+        destination: true,
+      },
+    });
+    if (!trip) {
+      return res.status(404).json({ message: 'Trip not found' });
+    }
+    res.status(200).json(trip);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

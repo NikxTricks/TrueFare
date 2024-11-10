@@ -23,4 +23,6 @@ router.put('/:id/complete', tripController.completeTrip);
 // Update trip status to "Canceled"
 router.put('/:id/cancel', tripController.cancelTrip);
 
+router.get('/:id/source-destination', tripController.getTripSourceDestination);
+
 module.exports = router;
