@@ -1,9 +1,14 @@
-// socket.js
 let io;
 
 module.exports = {
   init: (httpServer) => {
-    io = require('socket.io')(httpServer);
+    io = require('socket.io')(httpServer, {
+      cors: {
+        origin: '*',  // Allow all origins
+        methods: ['GET', 'POST'],
+        credentials: true
+      }
+    });
     return io;
   },
   getIO: () => {
