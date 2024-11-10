@@ -16,7 +16,7 @@ exports.createUser = async (req, res) => {
         email,
         password: hashedPassword,
         cardNumber,
-        //isActive: false, // Default to inactive upon creation
+        isActive: false, // Default to inactive upon creation
         createdAt: new Date(),
       },
     });
