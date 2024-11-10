@@ -1,7 +1,7 @@
 const axios = require('axios');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // Assuming Stripe is used for payments
 const io = require('../socket').getIO(); // Import Socket.io instance from socket.js
-const { PrismaClient } = require('@prisma/client'); // Import Prisma client
+const { PrismaClient, DriverStatus } = require('@prisma/client'); // Import Prisma client
 const prisma = new PrismaClient(); // Initialize Prisma client
 
 // In-memory list of active drivers (temporary storage for local use)
@@ -49,12 +49,15 @@ exports.getClosestDriver = async (req, res) => {
   const { userLat, userLng } = req.query;
 
   console.log('Received request to find closest driver for:', { userLat, userLng });
-  console.log('Current active drivers:', activeDrivers); // Log all active drivers
 
   try {
-    // Fetch available drivers from the database
-    const availableDrivers = await prisma.driver.findMany({
-      where: { status: 'Active', disabled: false },
+    // Fetch all available drivers from the User model
+    const availableDrivers = await prisma.user.findMany({
+      where: { driverStatus: DriverStatus.Active, disabled: false },
+      select: {
+        userID: true,
+        location: true, // Assuming location is stored as { type: 'Point', coordinates: [longitude, latitude] }
+      },
     });
 
     if (availableDrivers.length === 0) {
@@ -65,17 +68,15 @@ exports.getClosestDriver = async (req, res) => {
     let minDistance = Infinity;
     let closestDriver = null;
 
+    // Iterate over available drivers to find the closest one
     availableDrivers.forEach((driver) => {
-      console.log(`Calculating distance with user coordinates: (${userLat}, ${userLng}) and driver coordinates: (${driver.current_latitude}, ${driver.current_longitude})`);
-
+      const [driverLng, driverLat] = driver.location.coordinates;
       const driverDistance = calculateDistance(
         parseFloat(userLat),
         parseFloat(userLng),
-        driver.current_latitude,
-        driver.current_longitude
+        driverLat,
+        driverLng
       );
-
-      console.log(`Distance to driver ${driver.driverID}: ${driverDistance.toFixed(2)} km`);
 
       if (driverDistance < minDistance) {
         minDistance = driverDistance;
@@ -90,15 +91,20 @@ exports.getClosestDriver = async (req, res) => {
 
     console.log('Closest driver found:', closestDriver);
 
+    // Return closest driver details in the response
     res.status(200).json({
-      driverID: closestDriver.driverID,
+      driverID: closestDriver.userID,  // Changed to userID to match schema
       distance: minDistance.toFixed(2) + ' km',
+      location: closestDriver.location,
     });
   } catch (error) {
     console.error('Error finding the closest driver:', error);
     res.status(500).send('Error finding the closest driver');
   }
 };
+
+
+
 
 
 // Process payment via Stripe
@@ -165,64 +171,6 @@ exports.acceptRider = async (req, res) => {
   }
 };
 
-// Assign the closest driver to the ride using active drivers list
-exports.getClosestDriver = async (req, res) => {
-  const { userLat, userLng } = req.query;
-
-  console.log('Received request to find closest driver for:', { userLat, userLng });
-
-  try {
-    // Fetch all available drivers from the database with their latest location
-    const availableDrivers = await prisma.driver.findMany({
-      where: { status: 'Active', is_available: true },
-      select: {
-        driverID: true,
-        location: true, // Assuming location is stored as { type: 'Point', coordinates: [longitude, latitude] }
-      },
-    });
-
-    if (availableDrivers.length === 0) {
-      console.log('No available drivers found.');
-      return res.status(404).send('No available drivers found');
-    }
-
-    let minDistance = Infinity;
-    let closestDriver = null;
-
-    // Iterate over available drivers to find the closest one
-    availableDrivers.forEach((driver) => {
-      const [driverLng, driverLat] = driver.location.coordinates;
-      const driverDistance = calculateDistance(
-        parseFloat(userLat),
-        parseFloat(userLng),
-        driverLat,
-        driverLng
-      );
-
-      if (driverDistance < minDistance) {
-        minDistance = driverDistance;
-        closestDriver = driver;
-      }
-    });
-
-    if (!closestDriver) {
-      console.log('No nearby drivers found.');
-      return res.status(404).send('No nearby drivers found');
-    }
-
-    console.log('Closest driver found:', closestDriver);
-
-    // Store closest driver in the response
-    res.status(200).json({
-      driverID: closestDriver.driverID,
-      distance: minDistance.toFixed(2) + ' km',
-      location: closestDriver.location,
-    });
-  } catch (error) {
-    console.error('Error finding the closest driver:', error);
-    res.status(500).send('Error finding the closest driver');
-  }
-};
 
 // Set a driver to inactive and remove them from the active drivers list
 exports.setDriverInactive = async (req, res) => {
