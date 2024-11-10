@@ -20,6 +20,4 @@ router.put('/:userID/activate', userController.makeUserActive);
 // Route to deactivate a user
 router.put('/:userID/deactivate', userController.makeUserInactive);
 
-router.get('/email/:email/userID', userController.getUserIDByEmail);
-
 module.exports = router;
