@@ -126,13 +126,17 @@ exports.makeUserActive = async (req, res) => {
 
 
 // Method to make user isActive false
+// Method to make user inactive
 exports.makeUserInactive = async (req, res) => {
   const { userID } = req.params;
 
   try {
     const user = await prisma.user.update({
       where: { userID: parseInt(userID) },
-      data: { isActive: false },
+      data: { 
+        driverStatus: "Inactive",  // Assuming driverStatus is an enum type
+        disabled: false 
+      },
     });
     res.status(200).json({ message: 'User deactivated successfully', user });
   } catch (error) {
