@@ -2,21 +2,21 @@ const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
-const { PrismaClient } = require('@prisma/client'); // Prisma Client for database
-require('dotenv').config(); // Load environment variables
+const { PrismaClient } = require('@prisma/client');
+require('dotenv').config();
 
 const app = express();
-const http = require('http').createServer(app); // Create HTTP server for Socket.io
-const io = require('./socket').init(http); // Initialize Socket.io using socket.js
-const prisma = new PrismaClient(); // Initialize Prisma client
+const http = require('http').createServer(app);
+const io = require('./socket').init(http);
+const prisma = new PrismaClient();
 app.use(express.json());
 
 const cors = require('cors');
-app.use(cors({ origin: 'http://localhost:3001' }));
+app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'], credentials: true }));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'your_secret_key', // Use a secure secret in production
+    secret: process.env.SESSION_SECRET || 'your_secret_key',
     resave: false,
     saveUninitialized: true,
   })
@@ -25,7 +25,7 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-passport.serializeUser((user, done) => done(null, user.userID)); // Use userID as identifier
+passport.serializeUser((user, done) => done(null, user.userID));
 passport.deserializeUser(async (id, done) => {
   try {
     const user = await prisma.user.findUnique({ where: { userID: id } });
@@ -35,7 +35,6 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-// Configure Google OAuth strategy
 passport.use(
   new GoogleStrategy(
     {
@@ -65,11 +64,9 @@ passport.use(
   )
 );
 
-// Routes for Google OAuth authentication
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/' }), (req, res) => {
-  res.redirect('/dashboard'); // Redirect on successful login
+  res.redirect('/dashboard');
 });
 
 app.get('/logout', (req, res) => {
@@ -87,45 +84,62 @@ app.get('/dashboard', (req, res) => {
 
 // Import routes
 const riderRoutes = require('./routes/riderRoutes');
-app.use('/api', riderRoutes); // Mounts routes at /api
-
 const driverRoutes = require('./routes/driverRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 
-// Use routes
+app.use('/api', riderRoutes);
 app.use('/riders', riderRoutes);
 app.use('/drivers', driverRoutes);
 app.use('/trips', tripRoutes);
 app.use('/payments', paymentRoutes);
 
-// Socket.io configuration for WebSocket connections (driver/rider notifications)
+const activeDrivers = {};
+
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
-  socket.on('joinDriverRoom', (data) => {
-    console.log(`Driver ${data.driverID} has joined their room`);
-    socket.join(`driver_${data.driverID}`);
+  socket.on('startDrive', (data) => {
+    const { driverID } = data;
+    activeDrivers[driverID] = socket;
+    console.log(`Driver ${driverID} started driving with socket ID ${socket.id}`);
+  });
+
+  socket.on('acceptRide', (data) => {
+    const { driverID } = data;
+    const driverSocket = activeDrivers[driverID];
+
+    if (driverSocket) {
+      console.log(`Notifying driver ${driverID} of ride acceptance`);
+      driverSocket.emit('rideAcceptedNotification', { message: 'Ride accepted by the rider!' });
+    } else {
+      console.log(`Driver ${driverID} not found or not online`);
+    }
   });
 
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
+    for (const driverID in activeDrivers) {
+      if (activeDrivers[driverID].id === socket.id) {
+        delete activeDrivers[driverID];
+        console.log(`Removed driver ${driverID} from active drivers`);
+        break;
+      }
+    }
   });
 });
 
-// Start the server and attempt to connect to the database
 const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
-    await prisma.$connect(); // Connect Prisma client to the database
+    await prisma.$connect();
     console.log('Database connected!');
   } catch (error) {
     console.error('Unable to connect to the database:', error.message);
     console.log('Continuing without database connection...');
   }
 
-  // Start the server with HTTP server for WebSocket support
   http.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });

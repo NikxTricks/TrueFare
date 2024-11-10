@@ -1,9 +1,14 @@
-// socket.js
 let io;
 
 module.exports = {
   init: (httpServer) => {
-    io = require('socket.io')(httpServer);
+    io = require('socket.io')(httpServer, {
+      cors: {
+        origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+        methods: ['GET', 'POST'],
+        credentials: true
+      }
+    });
     return io;
   },
   getIO: () => {
