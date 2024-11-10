@@ -1,11 +1,17 @@
-// routes/userRoutes.js
-
 const express = require('express');
-const router = express.Router();
 const userController = require('../controllers/userController');
+const router = express.Router();
 
-// Define user-related routes
-router.post('/create', userController.createUser);
+// Route to create a new user
+router.post('/', userController.createUser);
+
+// Route to get a user by ID
+router.get('/:id', userController.getUserById);
+
+// Route to update a user’s location
+router.put('/:id/location', userController.updateUserLocation);
+
+// Route to verify a user (e.g., login endpoint)
 router.post('/verify', userController.verifyUser);
 
 module.exports = router;

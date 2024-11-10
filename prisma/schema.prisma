@@ -35,6 +35,8 @@ model User {
   password  String
   createdAt DateTime @default(now())
   cardNumber String
+  isActive Boolean @default(false)
+  location Json?   // { "type": "Point", "coordinates": [longitude, latitude] }
 
   Rider     Rider?
   Driver    Driver?
@@ -51,9 +53,9 @@ model Rider {
 model Driver {
   driverID   Int          @id @default(autoincrement())
   userID     Int          @unique
-  status     DriverStatus @default(Inactive)
+  //status     DriverStatus @default(Inactive)
   disabled   Boolean      @default(false)
-  location   Json?        // { "type": "Point", "coordinates": [longitude, latitude] }
+  //location   Json?         { "type": "Point", "coordinates": [longitude, latitude] }
   Trips      Trip[]       @relation("DriverTrips")
 
   User       User         @relation(fields: [userID], references: [userID])
@@ -84,3 +86,5 @@ model Payment {
 
   Trip      Trip         @relation(fields: [tripID], references: [id])
 }
+
+

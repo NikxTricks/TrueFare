@@ -9,18 +9,17 @@ exports.createUser = async (req, res) => {
     // Hash the password on the backend
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create the User with the hashed password
-    console.log("Before creation");
+    // Create the User with the hashed password and initialize `isActive` as false
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        password: hashedPassword, // Store hashed password here
-        createdAt: new Date(),
+        password: hashedPassword,
         cardNumber,
+        isActive: false, // Default to inactive upon creation
+        createdAt: new Date(),
       },
     });
-    console.log("After creation");
 
     // Initialize Rider and Driver profiles for the new User
     const rider = await prisma.rider.create({
@@ -30,9 +29,7 @@ exports.createUser = async (req, res) => {
     const driver = await prisma.driver.create({
       data: {
         userID: user.userID,
-        status: 'Inactive',
         disabled: false,
-        location: { type: 'Point', coordinates: [0, 0] },
       },
     });
 
@@ -48,6 +45,39 @@ exports.createUser = async (req, res) => {
   }
 };
 
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { userID: parseInt(req.params.id) },
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    console.error('Error fetching user:', error.message);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+};
+
+exports.updateUserLocation = async (req, res) => {
+  const { latitude, longitude } = req.body;
+  const userID = parseInt(req.params.id);
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { userID },
+      data: {
+        location: { type: 'Point', coordinates: [longitude, latitude] },
+      },
+    });
+    res.status(200).json({ message: 'User location updated', user: updatedUser });
+  } catch (error) {
+    console.error('Error updating user location:', error.message);
+    res.status(500).json({ error: 'Failed to update user location' });
+  }
+};
+
 exports.verifyUser = async (req, res) => {
   const { email, password } = req.body;
 
@@ -56,16 +86,12 @@ exports.verifyUser = async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Find the user by email
     const user = await prisma.user.findUnique({ where: { email } });
-
     if (!user || !user.password) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Compare the provided password with the hashed password
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
-
     if (!isPasswordCorrect) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
