@@ -88,12 +88,14 @@ const riderRoutes = require('./routes/riderRoutes');
 const driverRoutes = require('./routes/driverRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 app.use('/api', riderRoutes);
 app.use('/riders', riderRoutes);
 app.use('/drivers', driverRoutes);
 app.use('/trips', tripRoutes);
 app.use('/payments', paymentRoutes);
+app.use('/users', userRoutes);
 
 const activeDrivers = {};
 
