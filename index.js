@@ -2,33 +2,37 @@ const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
-const { PrismaClient } = require('@prisma/client'); // Prisma Client for database
-require('dotenv').config(); // Load environment variables
+const { PrismaClient } = require('@prisma/client');
+require('dotenv').config();
 
 const app = express();
 const http = require('http').createServer(app); // Create HTTP server for Socket.io
-const io = require('./socket').init(http); // Initialize Socket.io using socket.js
-const prisma = new PrismaClient(); // Initialize Prisma client
+const { Server } = require('socket.io');
+const prisma = new PrismaClient();
 app.use(express.json());
 
 const cors = require('cors');
 
-// Allow all origins
-app.use(cors({ origin: true }));
+// Configure CORS for Express and allow all origins
+app.use(cors({
+  origin: true,
+  credentials: true,
+}));
 
+// Session configuration
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'your_secret_key', // Use a secure secret in production
+    secret: process.env.SESSION_SECRET || 'your_secret_key',
     resave: false,
     saveUninitialized: true,
   })
 );
 
-
 app.use(passport.initialize());
 app.use(passport.session());
 
-passport.serializeUser((user, done) => done(null, user.userID)); // Use userID as identifier
+// Passport configuration
+passport.serializeUser((user, done) => done(null, user.userID));
 passport.deserializeUser(async (id, done) => {
   try {
     const user = await prisma.user.findUnique({ where: { userID: id } });
@@ -72,7 +76,7 @@ passport.use(
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/' }), (req, res) => {
-  res.redirect('/dashboard'); // Redirect on successful login
+  res.redirect('/dashboard');
 });
 
 app.get('/logout', (req, res) => {
@@ -88,24 +92,28 @@ app.get('/dashboard', (req, res) => {
   res.send(`Welcome, ${req.user.name}!`);
 });
 
-// Import routes
+// Import and use routes
 const riderRoutes = require('./routes/riderRoutes');
-app.use('/api', riderRoutes); // Mounts routes at /api
-
 const driverRoutes = require('./routes/driverRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const userRoutes = require('./routes/userRoutes');
 
-
-// Use routes
 app.use('/riders', riderRoutes);
 app.use('/drivers', driverRoutes);
 app.use('/trips', tripRoutes);
 app.use('/payments', paymentRoutes);
 app.use('/users', userRoutes);
 
-// Socket.io configuration for WebSocket connections (driver/rider notifications)
+// Configure Socket.io with CORS for WebSocket connections
+const io = new Server(http, {
+  cors: {
+    origin: 'http://localhost:3000', // Adjust based on your frontend origin
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
@@ -124,14 +132,13 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
-    await prisma.$connect(); // Connect Prisma client to the database
+    await prisma.$connect();
     console.log('Database connected!');
   } catch (error) {
     console.error('Unable to connect to the database:', error.message);
     console.log('Continuing without database connection...');
   }
 
-  // Start the server with HTTP server for WebSocket support
   http.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
