@@ -106,7 +106,7 @@ exports.verifyUser = async (req, res) => {
   }
 };
 
-exports.makeUserActive = async (req, res) => {
+exports.makeUserActive = async (req, res) => { //force redeploy
   const { userID } = req.params;
 
   try {
