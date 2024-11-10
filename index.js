@@ -12,7 +12,9 @@ const prisma = new PrismaClient(); // Initialize Prisma client
 app.use(express.json());
 
 const cors = require('cors');
-app.use(cors({ origin: 'http://localhost:3001' }));
+
+// Allow all origins
+app.use(cors({ origin: true }));
 
 app.use(
   session({
@@ -21,6 +23,7 @@ app.use(
     saveUninitialized: true,
   })
 );
+
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -92,12 +95,15 @@ app.use('/api', riderRoutes); // Mounts routes at /api
 const driverRoutes = require('./routes/driverRoutes');
 const tripRoutes = require('./routes/tripRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const userRoutes = require('./routes/userRoutes');
+
 
 // Use routes
 app.use('/riders', riderRoutes);
 app.use('/drivers', driverRoutes);
 app.use('/trips', tripRoutes);
 app.use('/payments', paymentRoutes);
+app.use('/users', userRoutes);
 
 // Socket.io configuration for WebSocket connections (driver/rider notifications)
 io.on('connection', (socket) => {

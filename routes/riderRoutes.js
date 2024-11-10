@@ -9,5 +9,6 @@ router.post('/payment', rideController.processPayment);
 router.post('/notifyDriver', rideController.sendNotificationToDriver);
 router.post('/acceptRider', rideController.acceptRider);
 router.post('/createDriver', rideController.createDriver);
+router.post('/rideConfirm', rideController.rideConfirm);
 
 module.exports = router;
