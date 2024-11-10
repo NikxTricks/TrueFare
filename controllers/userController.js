@@ -106,14 +106,16 @@ exports.verifyUser = async (req, res) => {
   }
 };
 
-//Makes isActive true
 exports.makeUserActive = async (req, res) => {
   const { userID } = req.params;
 
   try {
     const user = await prisma.user.update({
       where: { userID: parseInt(userID) },
-      data: { isActive: true },
+      data: { 
+        driverStatus: "Active",  // Assuming driverStatus is an enum type
+        disabled: true
+      },
     });
     res.status(200).json({ message: 'User activated successfully', user });
   } catch (error) {
@@ -121,6 +123,7 @@ exports.makeUserActive = async (req, res) => {
     res.status(500).json({ error: 'Failed to activate user' });
   }
 };
+
 
 // Method to make user isActive false
 exports.makeUserInactive = async (req, res) => {
