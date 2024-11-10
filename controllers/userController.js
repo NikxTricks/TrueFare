@@ -19,7 +19,7 @@ exports.createUser = async (req, res) => {
         password: hashedPassword,
         cardNumber,
         driverStatus: DriverStatus.Inactive, // Default to inactive upon creation
-        disabled: false,
+        disabled: true,
         createdAt: new Date(),
       },
     });
@@ -114,7 +114,7 @@ exports.makeUserActive = async (req, res) => { //force redeploy
       where: { userID: parseInt(userID) },
       data: { 
         driverStatus: "Active",  // Assuming driverStatus is an enum type
-        disabled: true
+        disabled: false
       },
     });
     res.status(200).json({ message: 'User activated successfully', user });
