@@ -6,20 +6,13 @@ const { PrismaClient } = require('@prisma/client');
 require('dotenv').config();
 
 const app = express();
-const http = require('http').createServer(app); // Create HTTP server for Socket.io
-const { Server } = require('socket.io');
+const http = require('http').createServer(app);
 const prisma = new PrismaClient();
 app.use(express.json());
 
 const cors = require('cors');
+app.use(cors({ origin: true, credentials: true }));
 
-// Configure CORS for Express and allow all origins
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
-
-// Session configuration
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'your_secret_key',
@@ -30,67 +23,6 @@ app.use(
 
 app.use(passport.initialize());
 app.use(passport.session());
-
-// Passport configuration
-passport.serializeUser((user, done) => done(null, user.userID));
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await prisma.user.findUnique({ where: { userID: id } });
-    done(null, user);
-  } catch (error) {
-    done(error, null);
-  }
-});
-
-// Configure Google OAuth strategy
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: '/auth/google/callback',
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        let user = await prisma.user.findUnique({ where: { googleId: profile.id } });
-
-        if (!user) {
-          user = await prisma.user.create({
-            data: {
-              googleId: profile.id,
-              name: profile.displayName,
-              email: profile.emails[0].value,
-            },
-          });
-        }
-
-        return done(null, user);
-      } catch (error) {
-        return done(error, null);
-      }
-    }
-  )
-);
-
-// Routes for Google OAuth authentication
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/' }), (req, res) => {
-  res.redirect('/dashboard');
-});
-
-app.get('/logout', (req, res) => {
-  req.logout(() => {
-    res.redirect('/');
-  });
-});
-
-app.get('/dashboard', (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.redirect('/');
-  }
-  res.send(`Welcome, ${req.user.name}!`);
-});
 
 // Import and use routes
 const riderRoutes = require('./routes/riderRoutes');
@@ -105,15 +37,10 @@ app.use('/trips', tripRoutes);
 app.use('/payments', paymentRoutes);
 app.use('/users', userRoutes);
 
-// Configure Socket.io with CORS for WebSocket connections
-const io = new Server(http, {
-  cors: {
-    origin: 'http://localhost:3000', // Adjust based on your frontend origin
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
-});
+// Initialize Socket.io after creating HTTP server
+const io = require('./socket').init(http); // This initializes Socket.io correctly
 
+// Socket.io event handlers
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
