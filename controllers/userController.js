@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, DriverStatus } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
@@ -16,7 +16,7 @@ exports.createUser = async (req, res) => {
         email,
         password: hashedPassword,
         cardNumber,
-        driverStatus: Inactive, // Default to inactive upon creation
+        driverStatus: DriverStatus.Inactive, // Default to inactive upon creation
         disabled: false,
         createdAt: new Date(),
       },
