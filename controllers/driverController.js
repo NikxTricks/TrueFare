@@ -45,24 +45,6 @@ exports.getDriverById = async (req, res) => {
   }
 };
 
-// Get a driver by userID
-exports.getDriverByUserId = async (req, res) => {
-  try {
-    const userID = parseInt(req.params.userID);
-    const driver = await prisma.driver.findUnique({
-      where: { userID },
-      select: { driverID: true },
-    });
-    if (!driver) {
-      return res.status(404).json({ error: 'Driver not found' });
-    }
-    res.status(200).json(driver);
-  } catch (error) {
-    console.error('Error fetching driver by userID:', error);
-    res.status(500).json({ error: 'Failed to fetch driver' });
-  }
-};
-
 // Update an existing driver's location
 exports.updateDriverLocation = async (req, res) => {
   const { latitude, longitude } = req.body;

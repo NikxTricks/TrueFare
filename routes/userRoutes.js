@@ -8,6 +8,8 @@ router.post('/create', userController.createUser);
 // Route to get a user by ID
 router.get('/:id', userController.getUserById);
 
+router.get('/:email/id', userController.getUserIdByEmail);
+
 // Route to update a user’s location
 router.put('/:id/location', userController.updateUserLocation);
 
