@@ -106,16 +106,23 @@ io.on('connection', (socket) => {
   });
 
   socket.on('acceptRide', (data) => {
-    const { driverID } = data;
+    const { driverID, riderID, distance, pickupLocation, dropoffLocation } = data; // Expecting these fields from the client
     const driverSocket = activeDrivers[driverID];
-
+    console.log('pickup: ', pickupLocation)
+    console.log('dropoff: ', dropoffLocation)
     if (driverSocket) {
-      console.log(`Notifying driver ${driverID} of ride acceptance`);
-      driverSocket.emit('rideAcceptedNotification', { message: 'Ride accepted by the rider!' });
+      console.log(`Notifying driver ${driverID} of ride acceptance with details`);
+      driverSocket.emit('rideAcceptedNotification', {
+        riderID,
+        distance,
+        pickupLocation,
+        dropoffLocation,
+      });
     } else {
       console.log(`Driver ${driverID} not found or not online`);
     }
   });
+
 
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
