@@ -1,4 +1,4 @@
-const { PrismaClient, DriverStatus } = require('@prisma/client');
+const { PrismaClient, DriverStatus } = require('@prisma/client'); // Import the enum
 const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
@@ -10,6 +10,8 @@ exports.createUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create the User with the hashed password and initialize `isActive` as false
+    console.log(email);
+    console.lg
     const user = await prisma.user.create({
       data: {
         name,
@@ -23,22 +25,22 @@ exports.createUser = async (req, res) => {
     });
 
     // Initialize Rider and Driver profiles for the new User
-    const rider = await prisma.rider.create({
-      data: { userID: user.userID },
-    });
+    // const rider = await prisma.rider.create({
+    //   data: { userID: user.userID },
+    // });
 
-    const driver = await prisma.driver.create({
-      data: {
-        userID: user.userID,
-        disabled: false,
-      },
-    });
+    // const driver = await prisma.driver.create({
+    //   data: {
+    //     userID: user.userID,
+    //     disabled: false,
+    //   },
+    // });
 
     res.status(201).json({
       message: 'User, Rider, and Driver profiles created successfully',
       user,
-      rider,
-      driver,
+      // rider,
+      // driver,
     });
   } catch (error) {
     console.error('Error creating user, rider, or driver:', error.message);
