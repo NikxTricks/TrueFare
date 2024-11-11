@@ -106,13 +106,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('acceptRide', (data) => {
-    const { driverID, riderID, distance, pickupLocation, dropoffLocation } = data; // Expecting these fields from the client
+    const { driverID, riderID, distance, pickupLocation, dropoffLocation } = data;
     const driverSocket = activeDrivers[driverID];
-    console.log('pickup: ', pickupLocation)
-    console.log('dropoff: ', dropoffLocation)
     if (driverSocket) {
       console.log(`Notifying driver ${driverID} of ride acceptance with details`);
-      driverSocket.emit('rideAcceptedNotification', {
+      driverSocket.emit('rideRequestFromRider', {
         riderID,
         distance,
         pickupLocation,
@@ -123,11 +121,22 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('driverAcceptRide', (data) => {
+    const { riderID } = data;
+    console.log(`Driver accepted the ride for rider ${riderID}`);
+    io.to(riderID).emit('driverAccepted', { message: 'Your ride was accepted by the driver!' });
+  });
+
+  socket.on('driverRejectRide', (data) => {
+    const { riderID } = data;
+    console.log(`Driver rejected the ride for rider ${riderID}`);
+    io.to(riderID).emit('driverRejected', { message: 'Your ride was rejected by the driver.' });
+  });
 
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
     for (const driverID in activeDrivers) {
-      if (activeDrivers[driverID].id === socket.id) {
+      if (activeDrivers[driverID] === socket) {
         delete activeDrivers[driverID];
         console.log(`Removed driver ${driverID} from active drivers`);
         break;
