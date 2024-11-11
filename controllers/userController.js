@@ -19,7 +19,7 @@ exports.createUser = async (req, res) => {
         password: hashedPassword,
         cardNumber,
         driverStatus: DriverStatus.Inactive, // Default to inactive upon creation
-        disabled: true,
+        disabled: false,
         createdAt: new Date(),
       },
     });

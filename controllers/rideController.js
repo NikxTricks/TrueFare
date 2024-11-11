@@ -56,7 +56,7 @@ exports.getClosestDriver = async (req, res) => {
       where: { driverStatus: DriverStatus.Active, disabled: false },
       select: {
         userID: true,
-        location: true, // Assuming location is stored as { type: 'Point', coordinates: [longitude, latitude] }
+        location: true, // Assuming location is stored as { userLat: 45, userLng: 45 }
       },
     });
 
@@ -70,17 +70,24 @@ exports.getClosestDriver = async (req, res) => {
 
     // Iterate over available drivers to find the closest one
     availableDrivers.forEach((driver) => {
-      const [driverLng, driverLat] = driver.location.coordinates;
-      const driverDistance = calculateDistance(
-        parseFloat(userLat),
-        parseFloat(userLng),
-        driverLat,
-        driverLng
-      );
+      const driverLat = driver.location?.userLat;
+      const driverLng = driver.location?.userLng;
 
-      if (driverDistance < minDistance) {
-        minDistance = driverDistance;
-        closestDriver = driver;
+      // Ensure driver has valid latitude and longitude
+      if (driverLat !== undefined && driverLng !== undefined) {
+        const driverDistance = calculateDistance(
+          parseFloat(userLat),
+          parseFloat(userLng),
+          parseFloat(driverLat),
+          parseFloat(driverLng)
+        );
+
+        if (driverDistance < minDistance) {
+          minDistance = driverDistance;
+          closestDriver = driver;
+        }
+      } else {
+        console.log(`Driver ${driver.userID} does not have valid location data.`);
       }
     });
 
@@ -93,7 +100,7 @@ exports.getClosestDriver = async (req, res) => {
 
     // Return closest driver details in the response
     res.status(200).json({
-      driverID: closestDriver.userID,  // Changed to userID to match schema
+      driverID: closestDriver.userID,
       distance: minDistance.toFixed(2) + ' km',
       location: closestDriver.location,
     });
