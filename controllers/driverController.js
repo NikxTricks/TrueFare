@@ -47,14 +47,14 @@ exports.getDriverById = async (req, res) => {
 
 // Update an existing driver's location
 exports.updateDriverLocation = async (req, res) => {
-  const { latitude, longitude } = req.body;
-  const driverID = parseInt(req.params.id);
+  const { userLat, userLng } = req.body;  // Expecting "userLat" and "userLng" from request body
+  const userID = parseInt(req.params.id);
 
   try {
-    const updatedDriver = await prisma.driver.update({
-      where: { driverID },
+    const updatedDriver = await prisma.user.update({
+      where: { userID },
       data: {
-        location: { type: 'Point', coordinates: [longitude, latitude] },
+        location: JSON.stringify({ userLat, userLng })  // Store location as a JSON string in this format
       },
     });
     res.status(200).json({ message: 'Driver location updated', driver: updatedDriver });
@@ -63,3 +63,4 @@ exports.updateDriverLocation = async (req, res) => {
     res.status(500).json({ error: 'Failed to update driver location' });
   }
 };
+
