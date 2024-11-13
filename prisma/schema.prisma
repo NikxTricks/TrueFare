@@ -39,7 +39,7 @@ model User {
   disabled     Boolean      @default(false) // If the user is a driver, this indicates if they are disabled
   location     Json?        // Driver location if they are active { "type": "Point", "coordinates": [longitude, latitude] }
 
-  phone        String?      // New field for phone number
+  phoneNumber        String?      // New field for phone number
   isSubscribed Boolean      @default(false) // New field for subscription status
 
   tripsRider   Trip[]       @relation("RiderTrips")
