@@ -1,5 +1,7 @@
 const express = require('express');
 const userController = require('../controllers/userController');
+const { updateSubscriptionStatus, updatePhoneNumber } = userController;
+
 const router = express.Router();
 
 // Route to create a new user
@@ -21,5 +23,11 @@ router.put('/:userID/activate', userController.makeUserActive);
 
 // Route to deactivate a user
 router.put('/:userID/deactivate', userController.makeUserInactive);
+
+// Route to update subscription status
+router.patch('/:userID/subscription', updateSubscriptionStatus);
+
+// Route to update phone number
+router.patch('/:userID/phone', updatePhoneNumber);
 
 module.exports = router;

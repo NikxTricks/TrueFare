@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 exports.createUser = async (req, res) => {
-  const { name, email, password, cardNumber } = req.body;
+  const { name, email, password, phoneNumber} = req.body
 
   try {
     // Hash the password on the backend
@@ -17,10 +17,11 @@ exports.createUser = async (req, res) => {
         name,
         email,
         password: hashedPassword,
-        cardNumber,
+        phoneNumber,
         driverStatus: DriverStatus.Inactive, // Default to inactive upon creation
         disabled: false,
         createdAt: new Date(),
+        isSubscribed: false,
       },
     });
 
@@ -160,5 +161,43 @@ exports.getUserIdByEmail = async (req, res) => {
   } catch (error) {
     console.error('Error fetching user by email:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
+  }
+};
+
+// Update Subscription Status
+exports.updateSubscriptionStatus = async (req, res) => {
+  const { userID } = req.params;
+  const { isSubscribed } = req.body;
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { userID: parseInt(userID) },
+      data: { isSubscribed },
+    });
+    res.status(200).json({
+      message: `Subscription status updated to ${isSubscribed}`,
+      user: updatedUser,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update subscription status" });
+  }
+};
+
+// Update Phone Number
+exports.updatePhoneNumber = async (req, res) => {
+  const { userID } = req.params;
+  const { phone } = req.body;
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { userID: parseInt(userID) },
+      data: { phone },
+    });
+    res.status(200).json({
+      message: "Phone number updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update phone number" });
   }
 };
