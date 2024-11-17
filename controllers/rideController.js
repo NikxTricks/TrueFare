@@ -115,33 +115,33 @@ exports.getClosestDriver = async (req, res) => {
 };
 
 // Process payment via Stripe
-exports.processPayment = async (req, res) => {
-  const { amount, currency, email } = req.body;
+// exports.processPayment = async (req, res) => {
+//   const { amount, currency, email } = req.body;
 
-  try {
-    // Fetch the payment method for the user based on email
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: { cardNumber: true },
-    });
+//   try {
+//     // Fetch the payment method for the user based on email
+//     const user = await prisma.user.findUnique({
+//       where: { email },
+//       select: { cardNumber: true },
+//     });
 
-    if (!user || !user.cardNumber) {
-      return res.status(400).json({ message: 'Payment method not found for this user' });
-    }
+//     if (!user || !user.cardNumber) {
+//       return res.status(400).json({ message: 'Payment method not found for this user' });
+//     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency,
-      payment_method: user.cardNumber, 
-      confirm: true,
-    });
+//     const paymentIntent = await stripe.paymentIntents.create({
+//       amount,
+//       currency,
+//       payment_method: user.cardNumber, 
+//       confirm: true,
+//     });
 
-    res.status(200).send('Payment successful');
-  } catch (error) {
-    console.error('Error processing payment:', error);
-    res.status(500).send('Error processing payment');
-  }
-};
+//     res.status(200).send('Payment successful');
+//   } catch (error) {
+//     console.error('Error processing payment:', error);
+//     res.status(500).send('Error processing payment');
+//   }
+// };
 
 
 // Send real-time notification to the driver

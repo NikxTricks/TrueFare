@@ -7,7 +7,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ENUM Definitions
+model User {
+  userID       Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  password     String
+  createdAt    DateTime      @default(now())
+  location     Json?
+  disabled     Boolean       @default(false)
+  driverStatus DriverStatus?
+  isDriver     Boolean       @default(false)
+  isSubscribed Boolean       @default(false)
+  phone        String?
+  tripsDriver  Trip[]        @relation("DriverTrips")
+  tripsRider   Trip[]        @relation("RiderTrips")
+}
+
+model Trip {
+  id          Int        @id @default(autoincrement())
+  status      TripStatus @default(Pending)
+  source      Json?
+  destination Json?
+  riderID     Int?
+  driverID    Int?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  Payment     Payment?
+  Driver      User?      @relation("DriverTrips", fields: [driverID], references: [userID])
+  Rider       User?      @relation("RiderTrips", fields: [riderID], references: [userID])
+}
+
+model Payment {
+  id        Int           @id @default(autoincrement())
+  method    PaymentMethod
+  amount    Float
+  tripID    Int           @unique
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  Trip      Trip          @relation(fields: [tripID], references: [id])
+}
+
 enum DriverStatus {
   Active
   Inactive
@@ -24,50 +63,4 @@ enum TripStatus {
   Ongoing
   Completed
   Canceled
-}
-
-// Models
-
-model User {
-  userID       Int          @id @default(autoincrement())
-  name         String
-  email        String       @unique
-  password     String
-  createdAt    DateTime     @default(now())
-  isDriver     Boolean      @default(false) // Indicates if the user is a driver
-  driverStatus DriverStatus? // Status of the user as a driver (Active/Inactive)
-  disabled     Boolean      @default(false) // If the user is a driver, this indicates if they are disabled
-  location     Json?        // Driver location if they are active { "type": "Point", "coordinates": [longitude, latitude] }
-
-  phoneNumber        String?      // New field for phone number
-  isSubscribed Boolean      @default(false) // New field for subscription status
-
-  tripsRider   Trip[]       @relation("RiderTrips")
-  tripsDriver  Trip[]       @relation("DriverTrips")
-}
-
-model Trip {
-  id           Int          @id @default(autoincrement())
-  status       TripStatus   @default(Pending)
-  source       Json?        // { "type": "Point", "coordinates": [longitude, latitude] }
-  destination  Json?        // { "type": "Point", "coordinates": [longitude, latitude] }
-  riderID      Int?         // References the User who is the rider
-  driverID     Int?         // References the User who is the driver
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  Rider        User?        @relation("RiderTrips", fields: [riderID], references: [userID])
-  Driver       User?        @relation("DriverTrips", fields: [driverID], references: [userID])
-  Payment      Payment?
-}
-
-model Payment {
-  id           Int          @id @default(autoincrement())
-  method       PaymentMethod
-  amount       Float
-  tripID       Int          @unique
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  Trip         Trip         @relation(fields: [tripID], references: [id])
 }
