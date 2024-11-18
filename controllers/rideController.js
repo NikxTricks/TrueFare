@@ -50,11 +50,24 @@ exports.updateDriverLocation = async (req, res) => {
 
 // Find the closest driver for a given user location using the active drivers list
 exports.getClosestDriver = async (req, res) => {
-  const { userLat, userLng } = req.query;
+  const { userLat, userLng, email} = req.query;
 
   console.log('Received request to find closest driver for:', { userLat, userLng });
 
   try {
+    // Fetch rider details
+    const rider = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        userID: true,
+        name: true,
+      },
+    });
+
+    if (!rider) {
+      return res.status(404).json({ message: "Rider not found" });
+    }
+
     // Fetch all available drivers from the User model
     const availableDrivers = await prisma.user.findMany({
       where: { driverStatus: DriverStatus.Active, disabled: false },
@@ -107,6 +120,8 @@ exports.getClosestDriver = async (req, res) => {
       driverID: closestDriver.userID,
       distance: minDistance.toFixed(2) + ' km',
       location: closestDriver.location,
+      riderID: rider.userID,
+      riderName: rider.name,
     });
   } catch (error) {
     console.error('Error finding the closest driver:', error);
