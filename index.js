@@ -108,15 +108,21 @@ io.on('connection', (socket) => {
     console.log(`Driver ${driverID} started driving with socket ID ${socket.id}`);
   });
 
-  socket.on('acceptRide', (data) => {
+  socket.on('acceptRide', async (data) => {
     const { driverID, riderID, distance, pickupLocation, dropoffLocation, price } = data; // Expecting `price` field now
     const driverSocket = activeDrivers[driverID];
-  
+    const rider = await prisma.user.findUnique({
+      where: { userID: riderID },
+      select: { name: true }, // Only fetch the name field
+    });
+    const riderName = rider.name;
+
     if (driverSocket) {
       console.log(`Notifying driver ${driverID} of ride acceptance with details`);
   
       driverSocket.emit('rideAcceptedNotification', {
         riderID,
+        riderName,
         distance,
         pickupLocation,
         dropoffLocation,
