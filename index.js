@@ -150,26 +150,26 @@ io.on('connection', (socket) => {
       userID: sock.userID,
     })));
   
-    const riderSocket = Array.from(io.sockets.sockets.values()).find(
+    const riderSockets = Array.from(io.sockets.sockets.values()).filter(
       (sock) => sock.userID === riderID
     );
-  
-    if (riderSocket) {
-      console.log(`Rider socket found: ${riderSocket.id}`);
-      riderSocket.emit('rideConfirmed', {
-        driverID,
-        riderID,
-        distance: data.distance,
-        pickupLocation: data.pickupLocation,
-        dropoffLocation: data.dropoffLocation,
-        price: data.price,
+    
+    if (riderSockets.length > 0) {
+      console.log(`Found ${riderSockets.length} sockets for rider ${riderID}`);
+      riderSockets.forEach(socket => {
+        socket.emit('rideConfirmed', {
+          driverID,
+          riderID,
+          distance: data.distance,
+          pickupLocation: data.pickupLocation,
+          dropoffLocation: data.dropoffLocation,
+          price: data.price,
+        });
+        console.log(`Notified rider ${riderID} on socket ${socket.id}`);
       });
-      console.log(`Rider ${riderID} notified of accepted ride by Driver ${driverID}`);
     } else {
       console.log(`Rider ${riderID} not online or not connected.`);
     }
-  });
-  
 
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
