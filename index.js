@@ -108,32 +108,68 @@ io.on('connection', (socket) => {
     console.log(`Driver ${driverID} started driving with socket ID ${socket.id}`);
   });
 
+
+  socket.on('riderJoin', (data) => {
+    const { riderID } = data;
+    socket.userID = riderID; // Associate riderID with the socket
+    console.log(`Rider email ${riderID} joined with socket ID ${socket.id}`);
+  });
+
+
   socket.on('acceptRide', async (data) => {
-    const { driverID, riderID, distance, pickupLocation, dropoffLocation, price } = data; // Expecting `price` field now
+    const { driverID, riderID, distance, pickupLocation, dropoffLocation, price } = data;
     const driverSocket = activeDrivers[driverID];
+  
     const rider = await prisma.user.findUnique({
       where: { userID: riderID },
-      select: { name: true }, // Only fetch the name field
+      select: { name: true },
     });
-    const riderName = rider.name;
-
-    if (driverSocket) {
-      console.log(`Notifying driver ${driverID} of ride acceptance with details`);
+    const riderName = rider?.name || 'Unknown Rider';
   
+    if (driverSocket) {
       driverSocket.emit('rideAcceptedNotification', {
         riderID,
         riderName,
         distance,
         pickupLocation,
         dropoffLocation,
-        price, // Include price in the notification payload
+        price,
       });
+      
     } else {
-      console.log(`Driver ${driverID} not found or not online`);
+      console.log(`Driver ${driverID} not found or not online.`);
     }
   });
   
-
+  // Listen for driver confirmation
+  socket.on('driverConfirmed', async (data) => {
+    console.log('Received driverConfirmed event:', data);
+    const { driverID, riderID } = data;
+    console.log('Connected sockets:', Array.from(io.sockets.sockets.values()).map((sock) => ({
+      id: sock.id,
+      userID: sock.userID,
+    })));
+  
+    const riderSocket = Array.from(io.sockets.sockets.values()).find(
+      (sock) => sock.userID === riderID
+    );
+  
+    if (riderSocket) {
+      console.log(`Rider socket found: ${riderSocket.id}`);
+      riderSocket.emit('rideConfirmed', {
+        driverID,
+        riderID,
+        distance: data.distance,
+        pickupLocation: data.pickupLocation,
+        dropoffLocation: data.dropoffLocation,
+        price: data.price,
+      });
+      console.log(`Rider ${riderID} notified of accepted ride by Driver ${driverID}`);
+    } else {
+      console.log(`Rider ${riderID} not online or not connected.`);
+    }
+  });
+  
 
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
